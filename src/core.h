@@ -22,6 +22,8 @@
 
 #include "log.h"
 
+#include <png.h>
+
 #include <stdlib.h>
 #include <vector>
 
@@ -36,8 +38,5 @@ std::vector<unsigned char> process_message(const char *message, int debug,
                                            int verbose);
 
 void write_to_device(std::vector<unsigned char> &bitmap_frame_buffer);
-
-// temp
-int add(int a, int b);
 
 #endif

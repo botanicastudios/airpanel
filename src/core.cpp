@@ -19,92 +19,15 @@
  */
 
 #include "core.h"
+#include "readpng.h"
 
 #include "cJSON.h"
 #include "epd7in5.h"
 #include "epdif.h"
 #include <math.h>
-#include <png.h>
 #include <vector>
 
-// temp
-int add(int a, int b) { return a + b; }
-
 using namespace std;
-
-static unsigned int width, height;
-static png_byte color_type;
-static png_byte bit_depth;
-static unsigned int bytes_per_pixel;
-static png_bytep *row_pointers;
-
-static void read_png_file(char *filename) {
-  FILE *fp = fopen(filename, "rb");
-
-  png_structp png =
-      png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-  if (!png)
-    abort();
-
-  png_infop info = png_create_info_struct(png);
-  if (!info)
-    abort();
-
-  if (setjmp(png_jmpbuf(png)))
-    abort();
-
-  png_init_io(png, fp);
-
-  png_read_info(png, info);
-
-  width = png_get_image_width(png, info);
-  height = png_get_image_height(png, info);
-  color_type = png_get_color_type(png, info);
-  bit_depth = png_get_bit_depth(png, info);
-
-  // Read any color_type into 8bit depth, RGBA format.
-  // See http://www.libpng.org/pub/png/libpng-manual.txt
-
-  if (bit_depth == 16)
-    png_set_strip_16(png);
-
-  if (color_type == PNG_COLOR_TYPE_PALETTE)
-    png_set_palette_to_rgb(png);
-
-  // PNG_COLOR_TYPE_GRAY_ALPHA is always 8 or 16bit depth.
-  if (color_type == PNG_COLOR_TYPE_GRAY && bit_depth < 8)
-    png_set_expand_gray_1_2_4_to_8(png);
-
-  if (png_get_valid(png, info, PNG_INFO_tRNS))
-    png_set_tRNS_to_alpha(png);
-
-  // These color_type don't have an alpha channel then fill it with 0xff.
-  if (color_type == PNG_COLOR_TYPE_RGB || color_type == PNG_COLOR_TYPE_GRAY ||
-      color_type == PNG_COLOR_TYPE_PALETTE)
-    png_set_filler(png, 0xFF, PNG_FILLER_AFTER);
-
-  if (color_type == PNG_COLOR_TYPE_GRAY ||
-      color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
-    png_set_gray_to_rgb(png);
-
-  png_read_update_info(png, info);
-
-  bytes_per_pixel =
-      static_cast<unsigned int>(png_get_rowbytes(png, info) / width);
-
-  row_pointers = static_cast<png_bytep *>(malloc(sizeof(png_bytep) * height));
-  for (unsigned int y = 0; y < height; y++) {
-    row_pointers[y] =
-        static_cast<png_byte *>(malloc(png_get_rowbytes(png, info)));
-  }
-
-  png_read_image(png, row_pointers);
-
-  fclose(fp);
-  png_destroy_read_struct(&png, &info, NULL);
-  png = NULL;
-  info = NULL;
-}
 
 /**
  * Lift the gamma curve from the pixel from the source image so we can convert
@@ -175,23 +98,29 @@ std::vector<unsigned char> process_message(const char *message, int debug,
 
       // Populate the row pointers with pixel data from the PNG image,
       // in RGBA format, using libpng
-      read_png_file(image_filename->valuestring);
+      ImageProperties image_properties =
+          read_png_file(image_filename->valuestring);
 
       /*
        * Our `rows` will contain a 2D, 1-bit representation of the
        * image, one vector element per pixel.
        */
-      std::vector<std::vector<int>> rows(height, std::vector<int>(width));
+      std::vector<std::vector<int>> rows(
+          image_properties.height, std::vector<int>(image_properties.width));
 
-      for (unsigned int y = 0; y < height; y++) {
-        for (unsigned int x = 0; x < width; x++) {
+      for (unsigned int y = 0; y < image_properties.height; y++) {
+        for (unsigned int x = 0; x < image_properties.width; x++) {
 
           // The row pointers contain RGBA data as one byte per channel
-          unsigned int gray_color =
-              convert_to_gray(row_pointers[y][x * bytes_per_pixel + 0],
-                              row_pointers[y][x * bytes_per_pixel + 1],
-                              row_pointers[y][x * bytes_per_pixel + 2],
-                              row_pointers[y][x * bytes_per_pixel + 3]);
+          unsigned int gray_color = convert_to_gray(
+              image_properties
+                  .row_pointers[y][x * image_properties.bytes_per_pixel + 0],
+              image_properties
+                  .row_pointers[y][x * image_properties.bytes_per_pixel + 1],
+              image_properties
+                  .row_pointers[y][x * image_properties.bytes_per_pixel + 2],
+              image_properties
+                  .row_pointers[y][x * image_properties.bytes_per_pixel + 3]);
 
           // If a pixel is more than 50% bright, make it white. Otherwise,
           // black.
@@ -239,8 +168,8 @@ std::vector<unsigned char> process_message(const char *message, int debug,
             // If the image is narrower or shorter than the current pixel
             // location, render white (i.e. 1). Otherwise, render the value
             // at the current pixel location from our rows[][]
-            if ((width <= (x * 8 + bit)) || (height <= y) ||
-                rows[y][x * 8 + bit] == 1) {
+            if ((image_properties.width <= (x * 8 + bit)) ||
+                (image_properties.height <= y) || rows[y][x * 8 + bit] == 1) {
               current_byte = current_byte | 1 << (7 - bit);
             }
           }

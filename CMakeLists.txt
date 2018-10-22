@@ -9,12 +9,24 @@ project(sample_project CXX C)
 
 # Core library. *.cpp should be added here.
 add_library(core
+  ./src/config.h
+  ./src/core.h
   ./src/core.cpp
-  ./src/bcm2835.c
-  ./src/cJSON.cpp
-  ./src/epd7in5.cpp
-  ./src/epdif.cpp
+  ./src/readpng.h
+  ./src/readpng.cpp
+  ./include/bcm2835.h
+  ./include/bcm2835.c
+  ./include/cJSON.h
+  ./include/cJSON.cpp
+  ./include/epd7in5.h
+  ./include/epd7in5.cpp
+  ./include/epdif.h
+  ./include/epdif.cpp
+  ./include/log.h
+  ./include/log.c
   )
+
+include_directories(./include)
 
 # Search for pkg-config
 include (FindPkgConfig)
