@@ -32,7 +32,7 @@ using namespace std;
  * TODO:5001 functions should.
  */
 
-std::vector<unsigned char> process_message(char *message, int debug,
+std::vector<unsigned char> process_message(const char *message, int debug,
                                            int verbose);
 
 void write_to_device(std::vector<unsigned char> &bitmap_frame_buffer);

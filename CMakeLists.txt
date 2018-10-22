@@ -57,7 +57,10 @@ if(TESTS)
   # Tests. *-test.cpp should be added here.
   add_executable(tests
     ./test/main-test.cpp
-    ./test/function-test.cpp)
+    ./test/image_data.h
+    ./test/process_image-test.cpp)
+
+  file(COPY test/fixtures DESTINATION .)
 
   # Link core, pthread and gtest to tests.
   target_link_libraries(tests

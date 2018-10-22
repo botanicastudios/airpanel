@@ -145,7 +145,7 @@ inline unsigned int convert_to_gray(unsigned int R, unsigned int G,
  * {"type":"message","data":{"action":"refresh","image":"/path/to/the/image.png"}}
  * It loads the file and returns a byte array ready to be sent to the display
  */
-std::vector<unsigned char> process_message(char *message, int debug,
+std::vector<unsigned char> process_message(const char *message, int debug,
                                            int verbose) {
   /**
    * The bitmap frame buffer will consist of bytes (i.e. char)
@@ -264,13 +264,13 @@ std::vector<unsigned char> process_message(char *message, int debug,
 
 void write_to_device(std::vector<unsigned char> &bitmap_frame_buffer) {
   // debug print byte frame buffer
-  /*for (unsigned int i = 0; i < bitmap_frame_buffer.size(); i++) {
+  for (unsigned int i = 0; i < bitmap_frame_buffer.size(); i++) {
     if (i % 16 == 0) {
       printf("\n");
     }
     printf("0X%02X,", bitmap_frame_buffer[i]);
   }
-  printf("\n");*/
+  printf("\n");
 
   Epd epd;
   if (epd.Init() != 0) {

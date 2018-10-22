@@ -122,7 +122,9 @@ int main(int argc, char *argv[]) {
       printf("%.*s\n", rc, buf);
 
       double time_start = get_time();
-      process_message(buf, debug, verbose);
+      std::vector<unsigned char> bitmap_frame_buffer =
+          process_message(buf, debug, verbose);
+      write_to_device(bitmap_frame_buffer);
       double time_end = get_time();
       printf("Took %.2f ms\n", (time_end - time_start));
     }
