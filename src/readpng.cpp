@@ -1,11 +1,17 @@
+#include "exceptions.h"
 #include "readpng.h"
 #include <png.h>
 #include <stdlib.h>
+#include <string>
 
 ImageProperties read_png_file(char *filename) {
   ImageProperties image_properties;
 
-  FILE *fp = fopen(filename, "rb");
+  FILE *fp;
+
+  if ((fp = fopen(filename, "rb")) == NULL) {
+    throw ImageFileNotFound(std::string(filename));
+  }
 
   png_structp png =
       png_create_read_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);

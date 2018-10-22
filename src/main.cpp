@@ -4,6 +4,7 @@ static const char *SOCKET_PATH = "/tmp/wollemi";
 
 #include <getopt.h>
 
+#include <iostream>
 #include <vector>
 
 #include <stdlib.h>
@@ -13,6 +14,7 @@ static const char *SOCKET_PATH = "/tmp/wollemi";
 #include <sys/time.h>
 
 #include "core.h"
+#include "exceptions.h"
 
 extern const char *__progname;
 
@@ -122,9 +124,13 @@ int main(int argc, char *argv[]) {
       printf("%.*s\n", rc, buf);
 
       double time_start = get_time();
-      std::vector<unsigned char> bitmap_frame_buffer =
-          process_message(buf, debug, verbose);
-      write_to_device(bitmap_frame_buffer);
+      try {
+        std::vector<unsigned char> bitmap_frame_buffer =
+            process_message(buf, debug, verbose);
+        write_to_device(bitmap_frame_buffer);
+      } catch (ImageFileNotFound &e) {
+        std::cout << e.what() << std::endl;
+      }
       double time_end = get_time();
       printf("Took %.2f ms\n", (time_end - time_start));
     }
