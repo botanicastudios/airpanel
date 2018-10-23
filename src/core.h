@@ -19,9 +19,10 @@
 #define _BOOTSTRAP_H
 
 #include "config.h"
+#include "exceptions.h"
+#include "logger.h"
 
 #include "cJSON.h"
-#include "log.h"
 #include <png.h>
 
 #include <stdlib.h>
@@ -47,9 +48,10 @@ Message parse_message(const char *message);
 unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
                              unsigned int A);
 
-std::vector<unsigned char> process_message(Message message, int debug,
-                                           int verbose);
+void process_message(Message message);
 
-void write_to_device(std::vector<unsigned char> &bitmap_frame_buffer);
+std::vector<unsigned char> process_image(Message action);
+
+void write_to_display(std::vector<unsigned char> &bitmap_frame_buffer);
 
 #endif

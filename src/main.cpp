@@ -3,19 +3,15 @@ static const char *PACKAGE = "Wollemi";
 static const char *SOCKET_PATH = "/tmp/wollemi";
 
 #include <getopt.h>
-
 #include <iostream>
-#include <vector>
-
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/socket.h>
-#include <sys/un.h>
-
 #include <sys/time.h>
+#include <sys/un.h>
+#include <vector>
 
 #include "core.h"
-#include "exceptions.h"
-
 extern const char *__progname;
 
 static void usage(void) {
@@ -39,8 +35,8 @@ inline double get_time() {
 }
 
 int main(int argc, char *argv[]) {
-  int debug = 1;
-  int verbose = 1;
+  plog::init(plog::debug, &colorConsoleAppender);
+
   int ch;
 
   /* TODO:3001 If you want to add more options, add them here. */
@@ -64,7 +60,6 @@ int main(int argc, char *argv[]) {
     }
     if (ch == 'x') {
       printf("flag is x\n");
-      debug++;
       break;
     }
     // fprintf(stderr, "unknown option `%c'\n", ch);
@@ -120,22 +115,21 @@ int main(int argc, char *argv[]) {
     while ((rc = static_cast<int>(read(cl, buf, sizeof(buf)))) > 0) {
       // Ensure the buffer passed to cJSON is null terminated, so the strlen it
       // calls doesn't suffer
-      buf[rc] = '\0';
-      printf("%.*s\n", rc, buf);
+      buf[rc - 1] = '\0'; // chops off the last \n too
+      LOG_INFO << "Received message: " << buf;
+      // printf("%.*s\n", rc, buf);
 
       double time_start = get_time();
       try {
         Message message = parse_message(buf);
-        if (message.action_is_refresh() && message.has_image_filename()) {
-          std::vector<unsigned char> bitmap_frame_buffer =
-              process_message(message, debug, verbose);
-          write_to_device(bitmap_frame_buffer);
-        }
+        process_message(message);
       } catch (exception &e) {
-        std::cout << e.what() << std::endl;
+        LOG_ERROR << e.what();
       }
       double time_end = get_time();
-      printf("Took %.2f ms\n", (time_end - time_start));
+      char timeTaken[20];
+      sprintf(timeTaken, "Took %.2f ms", (time_end - time_start));
+      LOG_INFO << timeTaken;
     }
     if (rc == -1) {
       perror("read");

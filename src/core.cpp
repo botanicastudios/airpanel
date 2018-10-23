@@ -86,31 +86,40 @@ Message parse_message(const char *message_string) {
   return message;
 }
 
+void process_message(Message message) {
+  if (message.action_is_refresh()) {
+    if (message.has_image_filename()) {
+      std::vector<unsigned char> bitmap_frame_buffer = process_image(message);
+      write_to_display(bitmap_frame_buffer);
+    } else {
+      LOG_WARNING << "Message with `refresh` action received, but no "
+                     "`image` was provided";
+    }
+  }
+}
+
 /**
  * Receives a JSON string of the format:
  * {"type":"message","data":{"action":"refresh","image":"/path/to/the/image.png"}}
  * It loads the file and returns a byte array ready to be sent to the display
  */
-std::vector<unsigned char> process_message(Message message, int debug,
-                                           int verbose) {
+std::vector<unsigned char> process_image(Message action) {
   /**
    * The bitmap frame buffer will consist of bytes (i.e. char)
    * in a vector. For a 1-bit display, each byte represents 8
    * 1-bit pixels. It will therefore be 1/8 of the width of the
    * display, and its full height.
    */
+
   unsigned int frame_buffer_length =
       static_cast<unsigned int>(ceil(DISPLAY_WIDTH / 8) * DISPLAY_HEIGHT);
   std::vector<unsigned char> bitmap_frame_buffer(frame_buffer_length);
 
-  printf("%d\n", debug);
-  printf("%d\n", verbose);
-  // printf("Displaying image file at \"%s\"\n", message.image_filename);
-  std::cout << "Displaying image file at: " << message.image_filename << "\n";
+  LOG_INFO << "Displaying image file at: " << action.image_filename;
 
   // Populate the row pointers with pixel data from the PNG image,
   // in RGBA format, using libpng
-  ImageProperties image_properties = read_png_file(message.image_filename);
+  ImageProperties image_properties = read_png_file(action.image_filename);
 
   /*
    * Our `rows` will contain a 2D, 1-bit representation of the
@@ -209,7 +218,7 @@ std::vector<unsigned char> process_message(Message message, int debug,
  * to write the frame buffer to the device.
  */
 
-void write_to_device(std::vector<unsigned char> &bitmap_frame_buffer) {
+void write_to_display(std::vector<unsigned char> &bitmap_frame_buffer) {
   Epd epd;
   if (epd.Init() != 0) {
     printf("e-Paper init failed\n");

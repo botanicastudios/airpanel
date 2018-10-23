@@ -13,6 +13,7 @@ add_library(core
   ./src/config.h
   ./src/core.h
   ./src/core.cpp
+  ./src/logger.h
   ./src/readpng.h
   ./src/readpng.cpp
   ./include/bcm2835.h
@@ -23,9 +24,10 @@ add_library(core
   ./include/epd7in5.cpp
   ./include/epdif.h
   ./include/epdif.cpp
-  ./include/log.h
-  ./include/log.c
   )
+
+add_library(plog INTERFACE)
+add_library(plog::plog ALIAS plog)
 
 include_directories(./include)
 
@@ -51,7 +53,8 @@ add_executable(wollemi
 
 # Link core to main.
 target_link_libraries(wollemi
-  core)
+  core
+  plog)
 
 # Add flags.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=c++11")
