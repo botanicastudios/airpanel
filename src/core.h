@@ -20,13 +20,12 @@
 
 #include "config.h"
 
+#include "cJSON.h"
 #include "log.h"
-
 #include <png.h>
 
-#include "cJSON.h"
-
 #include <stdlib.h>
+#include <string>
 #include <vector>
 
 using namespace std;
@@ -37,14 +36,10 @@ using namespace std;
  */
 
 struct Message {
-  const char *message;
-  cJSON *message_json;
-  cJSON *data;
-  cJSON *action;
-  cJSON *image_filename;
-  bool action_is_refresh() {
-    return strcmp(action->valuestring, "refresh") == 0);
-  };
+  std::string action;
+  std::string image_filename;
+  bool action_is_refresh() { return action == string("refresh"); };
+  bool has_image_filename() { return image_filename != string(""); }
 };
 
 Message parse_message(const char *message);
@@ -52,7 +47,7 @@ Message parse_message(const char *message);
 unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
                              unsigned int A);
 
-std::vector<unsigned char> process_message(const char *message, int debug,
+std::vector<unsigned char> process_message(Message message, int debug,
                                            int verbose);
 
 void write_to_device(std::vector<unsigned char> &bitmap_frame_buffer);

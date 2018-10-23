@@ -24,7 +24,9 @@
 #include "cJSON.h"
 #include "epd7in5.h"
 #include "epdif.h"
+#include <iostream>
 #include <math.h>
+#include <stdlib.h>
 #include <vector>
 
 using namespace std;
@@ -63,18 +65,25 @@ unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
   return static_cast<unsigned int>(round(linear_to_sRGB(gray_linear) * A));
 }
 
-Message parse_message(const char *message) {
+Message parse_message(const char *message_string) {
   Message message;
-  message.message_json = cJSON_Parse(message);
-  message.data = NULL;
-  message.action = NULL;
-  message.image_filename = NULL;
-  message.data = cJSON_GetObjectItemCaseSensitive(message.message_json, "data");
-  if (cJSON_IsObject(message.data)) {
-    message.action = cJSON_GetObjectItemCaseSensitive(message.data, "action");
-    message.image_filename =
-        cJSON_GetObjectItemCaseSensitive(message.data, "image");
+  cJSON *message_json;
+  cJSON *data;
+  message_json = cJSON_Parse(message_string);
+  data = NULL;
+  data = cJSON_GetObjectItemCaseSensitive(message_json, "data");
+  if (cJSON_IsObject(data)) {
+    cJSON *actionJSON = cJSON_GetObjectItemCaseSensitive(data, "action");
+    cJSON *imageJSON = cJSON_GetObjectItemCaseSensitive(data, "image");
+    if (actionJSON && actionJSON->valuestring != NULL) {
+      message.action = string(actionJSON->valuestring);
+    }
+    if (imageJSON && imageJSON->valuestring != NULL) {
+      message.image_filename = string(imageJSON->valuestring);
+    }
   }
+  cJSON_Delete(message_json);
+  return message;
 }
 
 /**
@@ -82,7 +91,7 @@ Message parse_message(const char *message) {
  * {"type":"message","data":{"action":"refresh","image":"/path/to/the/image.png"}}
  * It loads the file and returns a byte array ready to be sent to the display
  */
-std::vector<unsigned char> process_message(const char *message, int debug,
+std::vector<unsigned char> process_message(Message message, int debug,
                                            int verbose) {
   /**
    * The bitmap frame buffer will consist of bytes (i.e. char)
@@ -96,103 +105,89 @@ std::vector<unsigned char> process_message(const char *message, int debug,
 
   printf("%d\n", debug);
   printf("%d\n", verbose);
-  cJSON *message_json = cJSON_Parse(message);
-  cJSON *data = NULL;
-  cJSON *action = NULL;
-  cJSON *image_filename = NULL;
-  data = cJSON_GetObjectItemCaseSensitive(message_json, "data");
-  if (cJSON_IsObject(data)) {
-    action = cJSON_GetObjectItemCaseSensitive(data, "action");
-    image_filename = cJSON_GetObjectItemCaseSensitive(data, "image");
-    if (cJSON_IsString(action) &&
-        (strcmp(action->valuestring, "refresh") == 0) &&
-        cJSON_IsString(image_filename) &&
-        (image_filename->valuestring != NULL)) {
-      printf("Displaying image file at \"%s\"\n", image_filename->valuestring);
+  // printf("Displaying image file at \"%s\"\n", message.image_filename);
+  std::cout << "Displaying image file at: " << message.image_filename << "\n";
 
-      // Populate the row pointers with pixel data from the PNG image,
-      // in RGBA format, using libpng
-      ImageProperties image_properties =
-          read_png_file(image_filename->valuestring);
+  // Populate the row pointers with pixel data from the PNG image,
+  // in RGBA format, using libpng
+  ImageProperties image_properties = read_png_file(message.image_filename);
 
-      /*
-       * Our `rows` will contain a 2D, 1-bit representation of the
-       * image, one vector element per pixel.
-       */
-      std::vector<std::vector<int>> rows(
-          image_properties.height, std::vector<int>(image_properties.width));
+  /*
+   * Our `rows` will contain a 2D, 1-bit representation of the
+   * image, one vector element per pixel.
+   */
+  std::vector<std::vector<int>> rows(image_properties.height,
+                                     std::vector<int>(image_properties.width));
 
-      for (unsigned int y = 0; y < image_properties.height; y++) {
-        for (unsigned int x = 0; x < image_properties.width; x++) {
+  for (unsigned int y = 0; y < image_properties.height; y++) {
+    for (unsigned int x = 0; x < image_properties.width; x++) {
 
-          // The row pointers contain RGBA data as one byte per channel
-          unsigned int gray_color = convert_to_gray(
-              image_properties
-                  .row_pointers[y][x * image_properties.bytes_per_pixel + 0],
-              image_properties
-                  .row_pointers[y][x * image_properties.bytes_per_pixel + 1],
-              image_properties
-                  .row_pointers[y][x * image_properties.bytes_per_pixel + 2],
-              image_properties
-                  .row_pointers[y][x * image_properties.bytes_per_pixel + 3]);
+      // The row pointers contain RGBA data as one byte per channel
+      unsigned int gray_color = convert_to_gray(
+          image_properties
+              .row_pointers[y][x * image_properties.bytes_per_pixel + 0],
+          image_properties
+              .row_pointers[y][x * image_properties.bytes_per_pixel + 1],
+          image_properties
+              .row_pointers[y][x * image_properties.bytes_per_pixel + 2],
+          image_properties
+              .row_pointers[y][x * image_properties.bytes_per_pixel + 3]);
 
-          // If a pixel is more than 50% bright, make it white. Otherwise,
-          // black.
-          rows[y][x] = (gray_color > 127);
-          // debug print bitmap
-          // printf("%s", rows[y][x] ? "█" : " ");
-        }
-        // printf("\n");
-      }
+      // If a pixel is more than 50% bright, make it white. Otherwise,
+      // black.
+      rows[y][x] = (gray_color > 127);
+      // debug print bitmap
+      // printf("%s", rows[y][x] ? "█" : " ");
+    }
+    // printf("\n");
+  }
 
-      unsigned int bytes_per_row = DISPLAY_WIDTH / 8;
+  unsigned int bytes_per_row = DISPLAY_WIDTH / 8;
 
-      /*
-       * Convert the 2D matrix of 1-bit values into a flat array of
-       * 8-bit `char`s. To glob 8 bits together into a char, we use
-       * bit-shifting operators (<<)
-       */
+  /*
+   * Convert the 2D matrix of 1-bit values into a flat array of
+   * 8-bit `char`s. To glob 8 bits together into a char, we use
+   * bit-shifting operators (<<)
+   */
 
-      // for each row of the display (not the image!)...
-      for (unsigned int y = 0; y < DISPLAY_HEIGHT; y++) {
-        // ... and each byte across (i.e. 1/8 of the columns in the display)
-        // ...
-        for (unsigned int x = 0; x < bytes_per_row; x++) {
-          unsigned int current_byte = 0;
+  // for each row of the display (not the image!)...
+  for (unsigned int y = 0; y < DISPLAY_HEIGHT; y++) {
+    // ... and each byte across (i.e. 1/8 of the columns in the display)
+    // ...
+    for (unsigned int x = 0; x < bytes_per_row; x++) {
+      unsigned int current_byte = 0;
 
-          // ... iterate over the byte's 8 bits representing the pixels in
-          // the image
-          for (unsigned int bit = 0; bit < 8; bit++) {
-            // if the image exists to fill the current bit, and the current
-            // bit/pixel is 1/black, assign the current bit to its position
-            // in a new byte based on its index and assign the current byte
-            // to a bitwise OR of this new byte.
-            // e.g. rows[1] =
-            // 1 1 0 1 0 0 1 1
-            // ^              current_byte = 00000000; bit = 0;
-            //                current_byte = current_byte | 1 << (7-bit)
-            //                current_byte = current_byte | 10000000
-            //                current_byte = 10000000;
+      // ... iterate over the byte's 8 bits representing the pixels in
+      // the image
+      for (unsigned int bit = 0; bit < 8; bit++) {
+        // if the image exists to fill the current bit, and the current
+        // bit/pixel is 1/black, assign the current bit to its position
+        // in a new byte based on its index and assign the current byte
+        // to a bitwise OR of this new byte.
+        // e.g. rows[1] =
+        // 1 1 0 1 0 0 1 1
+        // ^              current_byte = 00000000; bit = 0;
+        //                current_byte = current_byte | 1 << (7-bit)
+        //                current_byte = current_byte | 10000000
+        //                current_byte = 10000000;
 
-            //   ^            bit = 1;
-            //                current_byte = current_byte | 1 << (7-bit)
-            //                current_byte = current_byte | 01000000
-            //                current_byte = 11000000;
+        //   ^            bit = 1;
+        //                current_byte = current_byte | 1 << (7-bit)
+        //                current_byte = current_byte | 01000000
+        //                current_byte = 11000000;
 
-            // If the image is narrower or shorter than the current pixel
-            // location, render white (i.e. 1). Otherwise, render the value
-            // at the current pixel location from our rows[][]
-            if ((image_properties.width <= (x * 8 + bit)) ||
-                (image_properties.height <= y) || rows[y][x * 8 + bit] == 1) {
-              current_byte = current_byte | 1 << (7 - bit);
-            }
-          }
-
-          // push each completed byte into the frame buffer
-          bitmap_frame_buffer[(y * bytes_per_row) + x] =
-              static_cast<unsigned char>(current_byte);
+        // If the image is narrower or shorter than the current pixel
+        // location, render white (i.e. 1). Otherwise, render the value
+        // at the current pixel location from our rows[][]
+        if ((image_properties.width <= (x * 8 + bit)) ||
+            (image_properties.height <= y) || rows[y][x * 8 + bit] == 1) {
+          current_byte = current_byte | 1 << (7 - bit);
         }
       }
+
+      // push each completed byte into the frame buffer
+      bitmap_frame_buffer[(y * bytes_per_row) + x] =
+          static_cast<unsigned char>(current_byte);
     }
   }
 
@@ -205,7 +200,6 @@ std::vector<unsigned char> process_message(const char *message, int debug,
   }
   printf("\n");*/
 
-  cJSON_Delete(message_json);
   return bitmap_frame_buffer;
 }
 

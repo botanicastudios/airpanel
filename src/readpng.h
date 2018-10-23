@@ -1,4 +1,5 @@
 #include <png.h>
+#include <string>
 
 struct ImageProperties {
   unsigned int width;
@@ -9,4 +10,4 @@ struct ImageProperties {
   png_bytep *row_pointers;
 };
 
-ImageProperties read_png_file(char *filename);
+ImageProperties read_png_file(std::string filename);

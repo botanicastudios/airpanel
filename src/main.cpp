@@ -125,10 +125,13 @@ int main(int argc, char *argv[]) {
 
       double time_start = get_time();
       try {
-        std::vector<unsigned char> bitmap_frame_buffer =
-            process_message(buf, debug, verbose);
-        write_to_device(bitmap_frame_buffer);
-      } catch (ImageFileNotFound &e) {
+        Message message = parse_message(buf);
+        if (message.action_is_refresh() && message.has_image_filename()) {
+          std::vector<unsigned char> bitmap_frame_buffer =
+              process_message(message, debug, verbose);
+          write_to_device(bitmap_frame_buffer);
+        }
+      } catch (exception &e) {
         std::cout << e.what() << std::endl;
       }
       double time_end = get_time();

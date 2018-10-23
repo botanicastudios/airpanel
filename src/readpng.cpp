@@ -4,13 +4,13 @@
 #include <stdlib.h>
 #include <string>
 
-ImageProperties read_png_file(char *filename) {
+ImageProperties read_png_file(std::string filename) {
   ImageProperties image_properties;
 
   FILE *fp;
 
-  if ((fp = fopen(filename, "rb")) == NULL) {
-    throw ImageFileNotFound(std::string(filename));
+  if ((fp = fopen(filename.c_str(), "rb")) == NULL) {
+    throw ImageFileNotFound(filename);
   }
 
   png_structp png =
