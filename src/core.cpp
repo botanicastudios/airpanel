@@ -53,14 +53,28 @@ inline double linear_to_sRGB(double y) {
  * formula, which better represents human perception
  */
 
-inline unsigned int convert_to_gray(unsigned int R, unsigned int G,
-                                    unsigned int B, unsigned int A) {
+unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
+                             unsigned int A) {
   double R_linear = sRGB_to_linear(R / 255.0);
   double G_linear = sRGB_to_linear(G / 255.0);
   double B_linear = sRGB_to_linear(B / 255.0);
   double gray_linear =
       0.2126 * R_linear + 0.7152 * G_linear + 0.0722 * B_linear;
   return static_cast<unsigned int>(round(linear_to_sRGB(gray_linear) * A));
+}
+
+Message parse_message(const char *message) {
+  Message message;
+  message.message_json = cJSON_Parse(message);
+  message.data = NULL;
+  message.action = NULL;
+  message.image_filename = NULL;
+  message.data = cJSON_GetObjectItemCaseSensitive(message.message_json, "data");
+  if (cJSON_IsObject(message.data)) {
+    message.action = cJSON_GetObjectItemCaseSensitive(message.data, "action");
+    message.image_filename =
+        cJSON_GetObjectItemCaseSensitive(message.data, "image");
+  }
 }
 
 /**
@@ -124,7 +138,7 @@ std::vector<unsigned char> process_message(const char *message, int debug,
 
           // If a pixel is more than 50% bright, make it white. Otherwise,
           // black.
-          rows[y][x] = (gray_color >= 127);
+          rows[y][x] = (gray_color > 127);
           // debug print bitmap
           // printf("%s", rows[y][x] ? "█" : " ");
         }
@@ -181,8 +195,18 @@ std::vector<unsigned char> process_message(const char *message, int debug,
       }
     }
   }
-  return bitmap_frame_buffer;
+
+  // debug print byte frame buffer
+  /*for (unsigned int i = 0; i < bitmap_frame_buffer.size(); i++) {
+    if (i % 16 == 0) {
+      printf("\n");
+    }
+    printf("0X%02X,", bitmap_frame_buffer[i]);
+  }
+  printf("\n");*/
+
   cJSON_Delete(message_json);
+  return bitmap_frame_buffer;
 }
 
 /**
@@ -192,15 +216,6 @@ std::vector<unsigned char> process_message(const char *message, int debug,
  */
 
 void write_to_device(std::vector<unsigned char> &bitmap_frame_buffer) {
-  // debug print byte frame buffer
-  for (unsigned int i = 0; i < bitmap_frame_buffer.size(); i++) {
-    if (i % 16 == 0) {
-      printf("\n");
-    }
-    printf("0X%02X,", bitmap_frame_buffer[i]);
-  }
-  printf("\n");
-
   Epd epd;
   if (epd.Init() != 0) {
     printf("e-Paper init failed\n");

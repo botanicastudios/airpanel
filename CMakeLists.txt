@@ -70,7 +70,8 @@ if(TESTS)
   # Tests. *-test.cpp should be added here.
   add_executable(tests
     ./test/main-test.cpp
-    ./test/image_data.h
+    ./test/load-bitmap-fixture.cpp
+    ./test/load-bitmap-fixture.h
     ./test/process_image-test.cpp)
 
   file(COPY test/fixtures DESTINATION .)

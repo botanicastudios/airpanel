@@ -24,6 +24,8 @@
 
 #include <png.h>
 
+#include "cJSON.h"
+
 #include <stdlib.h>
 #include <vector>
 
@@ -33,6 +35,22 @@ using namespace std;
  * TODO:5001 functions should not be prefixed with `static` keyword. All other
  * TODO:5001 functions should.
  */
+
+struct Message {
+  const char *message;
+  cJSON *message_json;
+  cJSON *data;
+  cJSON *action;
+  cJSON *image_filename;
+  bool action_is_refresh() {
+    return strcmp(action->valuestring, "refresh") == 0);
+  };
+};
+
+Message parse_message(const char *message);
+
+unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
+                             unsigned int A);
 
 std::vector<unsigned char> process_message(const char *message, int debug,
                                            int verbose);
