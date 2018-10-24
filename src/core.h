@@ -46,6 +46,26 @@ struct Message {
   bool has_image_filename() { return image_filename != string(""); }
 };
 
+struct Pixel {
+  int x;
+  int x_byte_index;
+  int y;
+  bool in_bounds;
+};
+
+struct DisplayProperties {
+  int width;
+  int height;
+  int color_mode;
+  std::string processor;
+  DisplayProperties() {
+    width = 0;
+    height = 0;
+    color_mode = COLOR_MODE_1BPP;
+    processor = BCM2835;
+  }
+};
+
 Message parse_message(const char *message);
 
 unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,

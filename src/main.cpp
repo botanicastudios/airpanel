@@ -67,6 +67,12 @@ int main(int argc, char *argv[]) {
     // exit(1);
   }
 
+  extern struct DisplayProperties DISPLAY_PROPERTIES;
+  DISPLAY_PROPERTIES.width = 640;
+  DISPLAY_PROPERTIES.height = 384;
+  DISPLAY_PROPERTIES.color_mode = COLOR_MODE_1BPP;
+  DISPLAY_PROPERTIES.processor = BCM2835;
+
   /*
    * We will receive a JSON encoded message on the UNIX socket, in this
    * format:
