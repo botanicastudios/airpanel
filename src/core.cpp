@@ -99,8 +99,7 @@ void process_message(Message message) {
 }
 
 /**
- * Receives a JSON string of the format:
- * {"type":"message","data":{"action":"refresh","image":"/path/to/the/image.png"}}
+ * Receives a Message object with the key `image_filename`
  * It loads the file and returns a byte array ready to be sent to the display
  */
 std::vector<unsigned char> process_image(Message action) {
@@ -111,111 +110,113 @@ std::vector<unsigned char> process_image(Message action) {
    * display, and its full height.
    */
 
+  unsigned int bytes_per_row =
+      COLOR_MODE == COLOR_MODE_1BPP ? DISPLAY_WIDTH / 8 : DISPLAY_WIDTH;
+
   unsigned int frame_buffer_length =
-      static_cast<unsigned int>(ceil(DISPLAY_WIDTH / 8) * DISPLAY_HEIGHT);
+      static_cast<unsigned int>(bytes_per_row * DISPLAY_HEIGHT);
   std::vector<unsigned char> bitmap_frame_buffer(frame_buffer_length);
 
-  LOG_INFO << "Displaying image file at: " << action.image_filename;
+  LOG_INFO << "Loading image file at: " << action.image_filename;
 
-  // Populate the row pointers with pixel data from the PNG image,
-  // in RGBA format, using libpng
+  /***
+   *  Populate the row pointers with pixel data from the PNG image,
+   *  in RGBA format, using libpng -- and return the image width, height,
+   *  and bytes_per_pixel
+   ***/
   ImageProperties image_properties = read_png_file(action.image_filename);
 
-  /*
-   * Our `rows` will contain a 2D, 1-bit representation of the
-   * image, one vector element per pixel.
-   */
-  std::vector<std::vector<int>> rows(image_properties.height,
-                                     std::vector<int>(image_properties.width));
+  action.offset_x = 0;
+  action.offset_y = 0;
 
-  for (unsigned int y = 0; y < image_properties.height; y++) {
-    for (unsigned int x = 0; x < image_properties.width; x++) {
-
-      // The row pointers contain RGBA data as one byte per channel
-      unsigned int gray_color = convert_to_gray(
-          image_properties
-              .row_pointers[y][x * image_properties.bytes_per_pixel + 0],
-          image_properties
-              .row_pointers[y][x * image_properties.bytes_per_pixel + 1],
-          image_properties
-              .row_pointers[y][x * image_properties.bytes_per_pixel + 2],
-          image_properties
-              .row_pointers[y][x * image_properties.bytes_per_pixel + 3]);
-
-      // If a pixel is more than 50% bright, make it white. Otherwise,
-      // black.
-      rows[y][x] = (gray_color > 127);
-      // debug print bitmap
-      // printf("%s", rows[y][x] ? "█" : " ");
-    }
-    // printf("\n");
-  }
-
-  unsigned int bytes_per_row = DISPLAY_WIDTH / 8;
-
-  /*
-   * Convert the 2D matrix of 1-bit values into a flat array of
-   * 8-bit `char`s. To glob 8 bits together into a char, we use
-   * bit-shifting operators (<<)
-   */
-
-  // for each row of the display (not the image!)...
+  unsigned int current_pixel;
+  unsigned int current_byte = 0;
   for (unsigned int y = 0; y < DISPLAY_HEIGHT; y++) {
-    // ... and each byte across (i.e. 1/8 of the columns in the display)
-    // ...
-    for (unsigned int x = 0; x < bytes_per_row; x++) {
-      unsigned int current_byte = 0;
+    for (unsigned int x = 0; x < DISPLAY_WIDTH; x++) {
 
-      // ... iterate over the byte's 8 bits representing the pixels in
-      // the image
-      for (unsigned int bit = 0; bit < 8; bit++) {
-        // if the image exists to fill the current bit, and the current
-        // bit/pixel is 1/black, assign the current bit to its position
-        // in a new byte based on its index and assign the current byte
-        // to a bitwise OR of this new byte.
-        // e.g. rows[1] =
-        // 1 1 0 1 0 0 1 1
-        // ^              current_byte = 00000000; bit = 0;
-        //                current_byte = current_byte | 1 << (7-bit)
-        //                current_byte = current_byte | 10000000
-        //                current_byte = 10000000;
+      // If the current pixel being drawn is inside the calculated image bounds,
+      // draw the pixel, otherwise draw the background color.
+      if (x >= action.offset_x &&
+          x < (action.offset_x + image_properties.width) &&
+          y >= action.offset_y &&
+          y < (action.offset_y + image_properties.height)) {
 
-        //   ^            bit = 1;
-        //                current_byte = current_byte | 1 << (7-bit)
-        //                current_byte = current_byte | 01000000
-        //                current_byte = 11000000;
+        // The row pointers contain RGBA data as one byte per channel: R, B, G
+        // and A.
+        unsigned int gray_color = convert_to_gray(
+            image_properties
+                .row_pointers[y][x * image_properties.bytes_per_pixel + 0],
+            image_properties
+                .row_pointers[y][x * image_properties.bytes_per_pixel + 1],
+            image_properties
+                .row_pointers[y][x * image_properties.bytes_per_pixel + 2],
+            image_properties
+                .row_pointers[y][x * image_properties.bytes_per_pixel + 3]);
 
-        // If the image is narrower or shorter than the current pixel
-        // location, render white (i.e. 1). Otherwise, render the value
-        // at the current pixel location from our rows[][]
-        if ((image_properties.width <= (x * 8 + bit)) ||
-            (image_properties.height <= y) || rows[y][x * 8 + bit] == 1) {
-          current_byte = current_byte | 1 << (7 - bit);
-        }
+        /***
+         *  If we're in 1 bit per pixel mode, then if a pixel is more than 50%
+         *  bright, make it white (1). Otherwise, black (0). If we're in 8 bit
+         *  per pixel mode, return the full 8-bit grayscale color.
+         ***/
+        current_pixel =
+            COLOR_MODE == COLOR_MODE_1BPP ? (gray_color > 127) : gray_color;
+      } else {
+        current_pixel = BACKGROUND_COLOR;
       }
 
-      // push each completed byte into the frame buffer
-      bitmap_frame_buffer[(y * bytes_per_row) + x] =
-          static_cast<unsigned char>(current_byte);
+      /***
+       *  we now have x (between 0 and display_width - 1) and y (between 0 and
+       *  display_height - 1).
+       *
+       *  COLOR_MODE will be equal to either COLOR_MODE_1BPP or COLOR_MODE_8BPP.
+       *
+       *  If COLOR_MODE == COLOR_MODE_1BPP then current_pixel will be an int
+       *  equal to either 1 (white) or 0 (black) and we want to push one byte
+       *  into the frame buffer per 8 pixels.
+       *
+       *  If COLOR_MODE == COLOR_MODE_8BPP then current_pixel will be an int
+       *  between 0 and 255 representing the grayscale value of the current
+       *  pixel, and we want to push one byte into the frame buffer per pixel.
+       ***/
+
+      if (COLOR_MODE == COLOR_MODE_1BPP) {
+        if (current_pixel == 1) {
+          current_byte = current_byte | 1 << (7 - (x % 8));
+        }
+        if (x % 8 == 7) {
+          bitmap_frame_buffer[(y * bytes_per_row) + (x / 8)] =
+              static_cast<unsigned char>(current_byte);
+          current_byte = 0;
+        }
+      } else {
+        bitmap_frame_buffer[(y * bytes_per_row) + x] =
+            static_cast<unsigned char>(current_pixel);
+      }
     }
   }
 
-  // debug print byte frame buffer
-  /*for (unsigned int i = 0; i < bitmap_frame_buffer.size(); i++) {
-    if (i % 16 == 0) {
-      printf("\n");
+  // Debug print byte frame buffer
+  IF_LOG(plog::verbose) {
+    std::stringstream debug_frame_buffer_line;
+    LOG_VERBOSE << "Frame buffer:";
+    for (unsigned int i = 0; i < bitmap_frame_buffer.size(); i++) {
+      if (i % 16 == 0 && i > 0) {
+        LOG_VERBOSE << debug_frame_buffer_line.str();
+        debug_frame_buffer_line.str("");
+      }
+      debug_frame_buffer_line << "0X" << setfill('0') << setw(2)
+                              << std::uppercase << std::hex
+                              << int(bitmap_frame_buffer[i]) << ",";
     }
-    printf("0X%02X,", bitmap_frame_buffer[i]);
   }
-  printf("\n");*/
 
   return bitmap_frame_buffer;
 }
 
 /**
  * Receives a frame buffer in the form of a byte array, the bits of which
- * represent the pixels to be displayed. Uses the `epdif` library from Waveshare
- * to write the frame buffer to the device.
+ * represent the pixels to be displayed. Uses the `epdif` library from
+ * Waveshare to write the frame buffer to the device.
  */
 
 void write_to_display(std::vector<unsigned char> &bitmap_frame_buffer) {

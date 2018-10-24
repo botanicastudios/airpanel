@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
     SOCKET_PATH = argv[1];
 
   if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    perror("socket error");
+    LOG_ERROR << "Socket error";
     exit(-1);
   }
 
@@ -97,18 +97,18 @@ int main(int argc, char *argv[]) {
 
   if (::bind(fd, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr)) ==
       -1) {
-    perror("bind error");
+    LOG_ERROR << "Bind error";
     exit(-1);
   }
 
   if (listen(fd, 5) == -1) {
-    perror("listen error");
+    LOG_ERROR << "Listen error";
     exit(-1);
   }
 
   while (1) {
     if ((cl = accept(fd, NULL, NULL)) == -1) {
-      perror("accept error");
+      LOG_ERROR << "Accept error";
       continue;
     }
 
@@ -117,25 +117,25 @@ int main(int argc, char *argv[]) {
       // calls doesn't suffer
       buf[rc - 1] = '\0'; // chops off the last \n too
       LOG_INFO << "Received message: " << buf;
-      // printf("%.*s\n", rc, buf);
-
       double time_start = get_time();
+
       try {
         Message message = parse_message(buf);
         process_message(message);
       } catch (exception &e) {
         LOG_ERROR << e.what();
       }
+
       double time_end = get_time();
       char timeTaken[20];
       sprintf(timeTaken, "Took %.2f ms", (time_end - time_start));
       LOG_INFO << timeTaken;
     }
     if (rc == -1) {
-      perror("read");
+      LOG_ERROR << "Read error";
       exit(-1);
     } else if (rc == 0) {
-      printf("EOF\n");
+      LOG_INFO << "EOF";
       close(cl);
     }
   }

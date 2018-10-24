@@ -9,10 +9,11 @@ project(sample_project CXX C)
 
 # Core library. *.cpp should be added here.
 add_library(core
-  ./src/exceptions.h
   ./src/config.h
+  ./src/constants.h
   ./src/core.h
   ./src/core.cpp
+  ./src/exceptions.h
   ./src/logger.h
   ./src/readpng.h
   ./src/readpng.cpp

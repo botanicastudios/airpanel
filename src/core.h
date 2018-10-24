@@ -18,6 +18,9 @@
 #ifndef _BOOTSTRAP_H
 #define _BOOTSTRAP_H
 
+#include <stdlib.h>
+#include <string>
+
 #include "config.h"
 #include "exceptions.h"
 #include "logger.h"
@@ -25,8 +28,6 @@
 #include "cJSON.h"
 #include <png.h>
 
-#include <stdlib.h>
-#include <string>
 #include <vector>
 
 using namespace std;
@@ -39,6 +40,8 @@ using namespace std;
 struct Message {
   std::string action;
   std::string image_filename;
+  unsigned int offset_x;
+  unsigned int offset_y;
   bool action_is_refresh() { return action == string("refresh"); };
   bool has_image_filename() { return image_filename != string(""); }
 };
