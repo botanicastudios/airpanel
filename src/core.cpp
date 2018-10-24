@@ -126,32 +126,38 @@ std::vector<unsigned char> process_image(Message action) {
    ***/
   ImageProperties image_properties = read_png_file(action.image_filename);
 
-  action.offset_x = 0;
-  action.offset_y = 0;
+  // Center the image in the display
+  int offset_x = floor((DISPLAY_WIDTH - image_properties.width) / 2);
+  int offset_y = floor((DISPLAY_HEIGHT - image_properties.height) / 2);
 
-  unsigned int current_pixel;
-  unsigned int current_byte = 0;
-  for (unsigned int y = 0; y < DISPLAY_HEIGHT; y++) {
-    for (unsigned int x = 0; x < DISPLAY_WIDTH; x++) {
+  int current_pixel;
+  int current_byte = 0;
+  int background_color_for_color_mode = COLOR_MODE == COLOR_MODE_1BPP
+                                            ? (BACKGROUND_COLOR > 127)
+                                            : BACKGROUND_COLOR;
+  int image_y;
+  int image_x;
+  int image_x_byte;
+
+  for (int y = 0; y < DISPLAY_HEIGHT; y++) {
+    for (int x = 0; x < DISPLAY_WIDTH; x++) {
 
       // If the current pixel being drawn is inside the calculated image bounds,
       // draw the pixel, otherwise draw the background color.
-      if (x >= action.offset_x &&
-          x < (action.offset_x + image_properties.width) &&
-          y >= action.offset_y &&
-          y < (action.offset_y + image_properties.height)) {
+      if (x >= offset_x && x < (offset_x + image_properties.width) &&
+          y >= offset_y && y < (offset_y + image_properties.height)) {
+
+        image_x = x - offset_x;
+        image_x_byte = image_x * image_properties.bytes_per_pixel;
+        image_y = y - offset_y;
 
         // The row pointers contain RGBA data as one byte per channel: R, B, G
         // and A.
         unsigned int gray_color = convert_to_gray(
-            image_properties
-                .row_pointers[y][x * image_properties.bytes_per_pixel + 0],
-            image_properties
-                .row_pointers[y][x * image_properties.bytes_per_pixel + 1],
-            image_properties
-                .row_pointers[y][x * image_properties.bytes_per_pixel + 2],
-            image_properties
-                .row_pointers[y][x * image_properties.bytes_per_pixel + 3]);
+            image_properties.row_pointers[image_y][image_x_byte + 0],
+            image_properties.row_pointers[image_y][image_x_byte + 1],
+            image_properties.row_pointers[image_y][image_x_byte + 2],
+            image_properties.row_pointers[image_y][image_x_byte + 3]);
 
         /***
          *  If we're in 1 bit per pixel mode, then if a pixel is more than 50%
@@ -161,7 +167,7 @@ std::vector<unsigned char> process_image(Message action) {
         current_pixel =
             COLOR_MODE == COLOR_MODE_1BPP ? (gray_color > 127) : gray_color;
       } else {
-        current_pixel = BACKGROUND_COLOR;
+        current_pixel = background_color_for_color_mode;
       }
 
       /***
@@ -222,7 +228,7 @@ std::vector<unsigned char> process_image(Message action) {
 void write_to_display(std::vector<unsigned char> &bitmap_frame_buffer) {
   Epd epd;
   if (epd.Init() != 0) {
-    printf("e-Paper init failed\n");
+    LOG_ERROR << "e-Paper init failed";
   } else {
     // send the frame buffer to the panel
     epd.DisplayFrame(bitmap_frame_buffer.data());

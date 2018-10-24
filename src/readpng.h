@@ -2,11 +2,11 @@
 #include <string>
 
 struct ImageProperties {
-  unsigned int width;
-  unsigned int height;
+  int width;
+  int height;
   png_byte color_type;
   png_byte bit_depth;
-  unsigned int bytes_per_pixel;
+  int bytes_per_pixel;
   png_bytep *row_pointers;
 };
 

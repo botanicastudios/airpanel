@@ -40,8 +40,8 @@ using namespace std;
 struct Message {
   std::string action;
   std::string image_filename;
-  unsigned int offset_x;
-  unsigned int offset_y;
+  int offset_x;
+  int offset_y;
   bool action_is_refresh() { return action == string("refresh"); };
   bool has_image_filename() { return image_filename != string(""); }
 };

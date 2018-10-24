@@ -1,3 +1,4 @@
+#include "../src/exceptions.h"
 #include "load-bitmap-fixture.h"
 #include <stdlib.h>
 #include <string>
@@ -7,7 +8,12 @@ using namespace std;
 std::vector<unsigned char>
 read_bmp_into_byte_array(const char *filename,
                          const int output_bits_per_pixel) {
-  FILE *f = fopen(filename, "rb");
+
+  FILE *f;
+  if ((f = fopen(filename, "rb")) == NULL) {
+    throw ImageFileNotFound(filename);
+  };
+
   unsigned char info[54];
   fread(info, sizeof(unsigned char), 54, f);
 
@@ -35,23 +41,6 @@ read_bmp_into_byte_array(const char *filename,
       unsigned int current_byte = 0;
 
       for (int bit = 0; bit < 8; bit++) {
-
-        /*bytes_per_row = 3
-
-            // 24px x 24px
-            y = 0 x = 0 bit =
-                0
-
-                (23 * 24 * 3) +
-                0
-
-                y = 12 x = 2 bit =
-                    4
-
-                    24 -
-                    1 - 12 = 11 11 * 3 - 33
-
-                             + 2 * 3 * 8 =*/
 
         if (data[((height - 1 - y) /* starting from bottom left for BMP! */ *
                   width * 3 /* bytes per pixel */) +
