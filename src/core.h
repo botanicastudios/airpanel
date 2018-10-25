@@ -86,8 +86,6 @@ void process_message(Message message);
 
 std::vector<unsigned char> process_image(Message action);
 
-void debug_write_bmp(Message action);
-
 void write_to_display(std::vector<unsigned char> &bitmap_frame_buffer);
 
 #endif

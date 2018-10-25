@@ -1,5 +1,6 @@
 #include "../src/core.h"
 #include "load-bitmap-fixture.h"
+#include "save-bitmap-fixture.h"
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include <iostream>
@@ -268,7 +269,7 @@ TEST(process_image, decodes_640x384_8bpp_to_1bpp_auto_orientation_landscape) {
 }
 
 TEST(process_image, decodes_384x640_24bpp_to_1bpp_auto_orientation_portrait) {
-  /*debug_write_bmp(parse_message(R"(
+  debug_write_ppm(parse_message(R"(
                 {
                   "type": "message",
                   "data": {
@@ -276,7 +277,7 @@ TEST(process_image, decodes_384x640_24bpp_to_1bpp_auto_orientation_portrait) {
                     "image": "./fixtures/384x640_24bpp_in.png"
                   }
                 }
-              )"));*/
+              )"));
   EXPECT_THAT(
       process_image(parse_message(R"(
                 {

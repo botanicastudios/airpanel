@@ -34,7 +34,7 @@ using namespace std;
 
 DisplayProperties DISPLAY_PROPERTIES;
 
-/**
+/***
  * Lift the gamma curve from the pixel from the source image so we can convert
  * to grayscale
  */
@@ -44,8 +44,8 @@ inline double sRGB_to_linear(double x) {
   return pow((x + 0.055) / 1.055, 2.4);
 }
 
-/**
- * Apply gamma curve to the pixel of the destination image again
+/***
+ *  Apply gamma curve to the pixel of the destination image again
  */
 inline double linear_to_sRGB(double y) {
   if (y <= 0.0031308)
@@ -53,11 +53,10 @@ inline double linear_to_sRGB(double y) {
   return 1.055 * pow(y, 1 / 2.4) - 0.055;
 }
 
-/**
- * Convert the color to grayscale using a luminosity
- * formula, which better represents human perception
+/***
+ *  Convert the color to grayscale using a luminosity
+ *  formula, which better represents human perception
  */
-
 unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
                              unsigned int A) {
   double R_linear = sRGB_to_linear(R / 255.0);
@@ -68,6 +67,9 @@ unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
   return static_cast<unsigned int>(round(linear_to_sRGB(gray_linear) * A));
 }
 
+/***
+ *  Get JSON parsing out of the way and return a struct.
+ */
 Message parse_message(const char *message_string) {
   Message message;
   cJSON *message_json;
@@ -105,6 +107,8 @@ Message parse_message(const char *message_string) {
   return message;
 }
 
+/* The main deal: take an incoming message and... display an image!
+ */
 void process_message(Message message) {
   if (message.action_is_refresh()) {
     if (message.has_image_filename()) {
@@ -117,6 +121,11 @@ void process_message(Message message) {
   }
 }
 
+/***
+ *  Given an x and y representing a pixel on the display, look up the x and y
+ *  co-ordinates from the source image, taking into account orientation and
+ *  offset (and the conversion to PNG byte row index, for convenience)
+ */
 Pixel translate_display_pixel_to_image(
     int x, int y, TranslationProperties translation_properties,
     ImageProperties image_properties) {
@@ -124,9 +133,17 @@ Pixel translate_display_pixel_to_image(
   Pixel image_pixel = {};
 
   switch (translation_properties.orientation) {
+
+  // For 180 orientation, swap the pixels around then proceed, then continue to
+  // process as per 0 orientation.
   case 180:
     x = translation_properties.display_width - 1 - x;
     y = translation_properties.display_height - 1 - y;
+
+  /* in_bounds figures out whether this pixel corresponds to an image pixel
+   * that lands within the display size, or whether this part of the display
+   * is blank because the image is offset, or too short/narrow for the display.
+   */
   case 0:
     image_pixel.in_bounds = (x >= translation_properties.offset_x &&
                              x < (translation_properties.offset_x +
@@ -135,6 +152,8 @@ Pixel translate_display_pixel_to_image(
                              y < (translation_properties.offset_y +
                                   translation_properties.image_height));
 
+    // assuming we are to render it, remove the offset to return the pixel
+    // co-ordinates from the source image
     if (image_pixel.in_bounds) {
       image_pixel.x = x - translation_properties.offset_x;
       image_pixel.y = y - translation_properties.offset_y;
@@ -142,9 +161,19 @@ Pixel translate_display_pixel_to_image(
 
     break;
 
+  // For 270 orientation, swap the pixels around then proceed, then continue to
+  // process as per 90 orientation.
   case 270:
     x = translation_properties.display_height - 1 - x;
     y = translation_properties.display_width - 1 - y;
+
+  /* Look up the image pixel after translating the image 90 degrees
+   * clockwise -- this mostly involves taking into account the display
+   * width (in its current orientation, which correspond's to the
+   * display's native height; see #get_translation_properties below),
+   * where we don't need to for an image with no change to its
+   * orientation.
+   */
   case 90:
     image_pixel.in_bounds = (x >= translation_properties.offset_y &&
                              x < (translation_properties.offset_y +
@@ -171,6 +200,13 @@ Pixel translate_display_pixel_to_image(
   return image_pixel;
 }
 
+/***
+ *  Return the color of the current display pixel, by looking up the
+ *  corresponding pixel from the source image and converting it to grayscale or
+ *  1-bit black and white (depending on the color mode). If there's no source
+ *  pixel (because there's an offset, or the image doesn't cover the whole
+ *  display), return the background color.
+ */
 int get_current_pixel(int x, int y,
                       TranslationProperties translation_properties,
                       ImageProperties image_properties, int background_color) {
@@ -194,21 +230,26 @@ int get_current_pixel(int x, int y,
         image_properties
             .row_pointers[image_pixel.y][image_pixel.x_byte_index + 3]);
 
-    /***
-     *  If we're in 1 bit per pixel mode, then if a pixel is more than 50%
-     *  bright, make it white (1). Otherwise, black (0). If we're in 8 bit
-     *  per pixel mode, return the full 8-bit grayscale color.
-     ***/
+    /* If we're in 1 bit per pixel mode, then if a pixel is more than 50%
+     * bright, make it white (1). Otherwise, black (0). If we're in 8 bit
+     * per pixel mode, return the full 8-bit grayscale color.
+     */
     return COLOR_MODE == COLOR_MODE_1BPP ? (gray_color > 127) : gray_color;
   } else {
     return background_color;
   }
 }
 
+/***
+ *  Set up the orientation, offset and if necessary swap display width and
+ * height to make it easier to reason about the display pixel -> image pixel
+ *  conversion.
+ */
 TranslationProperties
 get_translation_properties(Message action, ImageProperties image_properties) {
   TranslationProperties translation_properties;
 
+  // If the message provided an orientation, use that preferentially
   if (action.orientation_specified) {
     translation_properties.orientation = action.orientation;
   } else {
@@ -216,8 +257,8 @@ get_translation_properties(Message action, ImageProperties image_properties) {
       // If display orientation was specified at startup, use that
       translation_properties.orientation = DISPLAY_PROPERTIES.orientation;
     } else {
-      // Auto orient images so landscape displays rotate portrait images and
-      // vice versa
+      // If no orientation was specified, auto orient images so landscape
+      // displays rotate portrait images and vice versa
       translation_properties.orientation =
           DISPLAY_PROPERTIES.is_portrait() == image_properties.is_portrait()
               ? 0
@@ -264,18 +305,17 @@ get_translation_properties(Message action, ImageProperties image_properties) {
   return translation_properties;
 }
 
-/**
- * Receives a Message object with the key `image_filename`
- * It loads the file and returns a byte array ready to be sent to the display
+/***
+ *  Receives a Message object with the key `image_filename`
+ *  It loads the file and returns a byte array ready to be sent to the display
  */
 std::vector<unsigned char> process_image(Message action) {
-  /**
-   * The bitmap frame buffer will consist of bytes (i.e. char)
+
+  /* The bitmap frame buffer will consist of bytes (i.e. char)
    * in a vector. For a 1-bit display, each byte represents 8
    * 1-bit pixels. It will therefore be 1/8 of the width of the
    * display, and its full height.
    */
-
   unsigned int bytes_per_row = COLOR_MODE == COLOR_MODE_1BPP
                                    ? DISPLAY_PROPERTIES.width / 8
                                    : DISPLAY_PROPERTIES.width;
@@ -286,11 +326,10 @@ std::vector<unsigned char> process_image(Message action) {
 
   LOG_INFO << "Loading image file at: " << action.image_filename;
 
-  /***
-   *  Populate the row pointers with pixel data from the PNG image,
-   *  in RGBA format, using libpng -- and return the image width, height,
-   *  and bytes_per_pixel
-   ***/
+  /* Populate the row pointers with pixel data from the PNG image,
+   * in RGBA format, using libpng -- and return the image width, height,
+   * and bytes_per_pixel
+   */
   ImageProperties image_properties = read_png_file(action.image_filename);
 
   TranslationProperties translation_properties =
@@ -309,31 +348,29 @@ std::vector<unsigned char> process_image(Message action) {
           get_current_pixel(x, y, translation_properties, image_properties,
                             background_color_for_color_mode);
 
-      /***
-       *  we now have x (between 0 and display_width - 1) and y (between 0 and
-       *  display_height - 1).
+      /* We now have x (between 0 and display_width - 1) and y (between 0 and
+       * display_height - 1).
        *
-       *  COLOR_MODE will be equal to either COLOR_MODE_1BPP or
-       *COLOR_MODE_8BPP.
+       * COLOR_MODE will be equal to either COLOR_MODE_1BPP or
+       * COLOR_MODE_8BPP.
        *
-       *  If COLOR_MODE == COLOR_MODE_1BPP then current_pixel will be an int
-       *  equal to either 1 (white) or 0 (black) and we want to push one byte
-       *  into the frame buffer per 8 pixels.
+       * If COLOR_MODE == COLOR_MODE_1BPP then current_pixel will be an int
+       * equal to either 1 (white) or 0 (black) and we want to push one byte
+       * into the frame buffer per 8 pixels.
        *
-       *  If COLOR_MODE == COLOR_MODE_8BPP then current_pixel will be an int
-       *  between 0 and 255 representing the grayscale value of the current
-       *  pixel, and we want to push one byte into the frame buffer per pixel.
-       ***/
+       * If COLOR_MODE == COLOR_MODE_8BPP then current_pixel will be an int
+       * between 0 and 255 representing the grayscale value of the current
+       * pixel, and we want to push one byte into the frame buffer per pixel.
+       */
 
       if (COLOR_MODE == COLOR_MODE_1BPP) {
-        /***
-         *  Perform a bitwise OR to set the bit in the current_byte
-         *representing the current pixel (of a set of 8), e.g.: 00110011
-         *(current_byte) | 00001000 (i.e. current pixel) = 00111011 If we're
-         *on the 8th and final pixel of the current_byte, push the
-         *  current_byte into the frame buffer and reset it to zero so we can
-         *  process the next 8 pixels.
-         ***/
+        /* Perform a bitwise OR to set the bit in the current_byte
+         * representing the current pixel (of a set of 8), e.g.: 00110011
+         * (current_byte) | 00001000 (i.e. current pixel) = 00111011 If we're
+         * on the 8th and final pixel of the current_byte, push the
+         * current_byte into the frame buffer and reset it to zero so we can
+         * process the next 8 pixels.
+         */
         if (current_pixel == 1) {
           current_byte = current_byte | 1 << (7 - (x % 8));
         }
@@ -369,59 +406,11 @@ std::vector<unsigned char> process_image(Message action) {
   return bitmap_frame_buffer;
 }
 
-void debug_write_bmp(Message action) {
-  std::vector<unsigned char> debug_frame_buffer = process_image(action);
-  std::vector<unsigned char> debug_24bpp_frame_buffer(
-      DISPLAY_PROPERTIES.width * DISPLAY_PROPERTIES.height * 3);
-
-  for (int i = 0; i < debug_frame_buffer.size(); i++) {
-    if (COLOR_MODE == COLOR_MODE_1BPP) {
-      char byte = debug_frame_buffer[i];
-      for (int bit = 0; bit < 8; bit++) {
-        int bit_value = ((byte >> (7 - bit)) & 1) * 255;
-        debug_24bpp_frame_buffer[i * 8 * 3 + (3 * bit)] = bit_value;
-        debug_24bpp_frame_buffer[i * 8 * 3 + (3 * bit) + 1] = bit_value;
-        debug_24bpp_frame_buffer[i * 8 * 3 + (3 * bit) + 2] = bit_value;
-      }
-    } else {
-      debug_24bpp_frame_buffer[i * 3] = debug_frame_buffer[i];
-      debug_24bpp_frame_buffer[i * 3 + 1] = debug_frame_buffer[i];
-      debug_24bpp_frame_buffer[i * 3 + 2] = debug_frame_buffer[i];
-    }
-  }
-
-  /*for (int i = 0; i < debug_24bpp_frame_buffer.size(); i++) {
-    if (i % 16 == 0) {
-      printf("\n");
-    }
-    printf("%d\t", debug_24bpp_frame_buffer[i]);
-  }*/
-
-  FILE *imageFile;
-
-  imageFile = fopen("./image.ppm", "wb");
-  if (imageFile == NULL) {
-    perror("ERROR: Cannot open output file");
-    exit(EXIT_FAILURE);
-  }
-
-  fprintf(imageFile, "P6\n"); // P6 filetype
-  fprintf(imageFile, "%d %d\n", DISPLAY_PROPERTIES.width,
-          DISPLAY_PROPERTIES.height); // dimensions
-  fprintf(imageFile, "255\n");        // Max pixel
-
-  fwrite(reinterpret_cast<char *>(&debug_24bpp_frame_buffer[0]), 1,
-         debug_24bpp_frame_buffer.size(), imageFile);
-
-  fclose(imageFile);
-}
-
-/**
- * Receives a frame buffer in the form of a byte array, the bits of which
- * represent the pixels to be displayed. Uses the `epdif` library from
- * Waveshare to write the frame buffer to the device.
+/***
+ *  Receives a frame buffer in the form of a byte array, the bits of which
+ *  represent the pixels to be displayed. Uses the `epdif` library from
+ *  Waveshare to write the frame buffer to the device.
  */
-
 void write_to_display(std::vector<unsigned char> &bitmap_frame_buffer) {
   Epd epd;
   if (epd.Init() != 0) {

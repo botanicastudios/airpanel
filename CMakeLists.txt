@@ -76,6 +76,8 @@ if(TESTS)
     ./test/main-test.cpp
     ./test/load-bitmap-fixture.cpp
     ./test/load-bitmap-fixture.h
+    ./test/save-bitmap-fixture.cpp
+    ./test/save-bitmap-fixture.h
     ./test/process_image-test.cpp)
 
   file(COPY test/fixtures DESTINATION .)
