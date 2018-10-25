@@ -164,6 +164,8 @@ Pixel translate_display_pixel_to_image(
     break;
   }
 
+  // Input PNG images will have more than one byte per pixel -- we need to know
+  // which byte (corresponding to the red channel of RGB) to start from
   image_pixel.x_byte_index = image_pixel.x * image_properties.bytes_per_pixel;
 
   return image_pixel;
@@ -210,7 +212,17 @@ get_translation_properties(Message action, ImageProperties image_properties) {
   if (action.orientation_specified) {
     translation_properties.orientation = action.orientation;
   } else {
-    translation_properties.orientation = DISPLAY_PROPERTIES.orientation;
+    if (DISPLAY_PROPERTIES.orientation_specified) {
+      // If display orientation was specified at startup, use that
+      translation_properties.orientation = DISPLAY_PROPERTIES.orientation;
+    } else {
+      // Auto orient images so landscape displays rotate portrait images and
+      // vice versa
+      translation_properties.orientation =
+          DISPLAY_PROPERTIES.is_portrait() == image_properties.is_portrait()
+              ? 0
+              : 90;
+    }
   }
 
   switch (translation_properties.orientation) {

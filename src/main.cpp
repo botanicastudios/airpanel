@@ -72,7 +72,7 @@ int main(int argc, char *argv[]) {
   DISPLAY_PROPERTIES.width = 640;
   DISPLAY_PROPERTIES.height = 384;
   DISPLAY_PROPERTIES.color_mode = COLOR_MODE_1BPP;
-  DISPLAY_PROPERTIES.orientation = 0;
+  // DISPLAY_PROPERTIES.orientation = 0;
   DISPLAY_PROPERTIES.processor = BCM2835;
 
   /*

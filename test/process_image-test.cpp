@@ -40,23 +40,41 @@ TEST(process_image, decodes_640x384_1bpp_to_1bpp) {
                   "type": "message",
                   "data": {
                     "action": "refresh",
-                    "image": "./fixtures/640x384_1bpp_in.png"
+                    "image": "./fixtures/640x384a_1bpp_in.png"
                   }
                 }
               )")),
 
       ElementsAreArray(read_bmp_into_byte_array(
-          "./fixtures/640x384_1bpp_orientation_0_out.bmp", COLOR_MODE_1BPP)));
+          "./fixtures/640x384a_1bpp_orientation_0_out.bmp", COLOR_MODE_1BPP)));
 }
 
-TEST(process_image, decodes_200x100_8bpp_to_1bpp) {
+TEST(process_image, decodes_640x384_1bpp_to_1bpp_orientation_180) {
+  EXPECT_THAT(process_image(parse_message(R"(
+                {
+                  "type": "message",
+                  "data": {
+                    "action": "refresh",
+                    "image": "./fixtures/640x384a_1bpp_in.png",
+                    "orientation": 180
+                  }
+                }
+              )")),
+
+              ElementsAreArray(read_bmp_into_byte_array(
+                  "./fixtures/640x384a_1bpp_orientation_180_out.bmp",
+                  COLOR_MODE_1BPP)));
+}
+
+TEST(process_image, decodes_200x100_8bpp_to_1bpp_orientation_0) {
   EXPECT_THAT(
       process_image(parse_message(R"(
                 {
                   "type": "message",
                   "data": {
                     "action": "refresh",
-                    "image": "./fixtures/200x100_8bpp_in.png"
+                    "image": "./fixtures/200x100_8bpp_in.png",
+                    "orientation": 0
                   }
                 }
               )")),
@@ -116,7 +134,7 @@ TEST(process_image, decodes_200x100_8bpp_to_1bpp_orientation_270) {
           "./fixtures/200x100_1bpp_orientation_270_out.bmp", COLOR_MODE_1BPP)));
 }
 
-TEST(process_image, decodes_200x100_8bpp_to_1bpp_custom_offset) {
+TEST(process_image, decodes_200x100_8bpp_to_1bpp_orientation_0_custom_offset) {
   EXPECT_THAT(process_image(parse_message(R"(
                 {
                   "type": "message",
@@ -124,7 +142,8 @@ TEST(process_image, decodes_200x100_8bpp_to_1bpp_custom_offset) {
                     "action": "refresh",
                     "image": "./fixtures/200x100_8bpp_in.png",
                     "offset_x": 20,
-                    "offset_y": 20
+                    "offset_y": 20,
+                    "orientation": 0
                   }
                 }
               )")),
@@ -197,18 +216,6 @@ TEST(process_image,
 }
 
 TEST(process_image, decodes_200x100_8bpp_to_1bpp_orientation_0_zero_offset) {
-  debug_write_bmp(parse_message(R"(
-                {
-                  "type": "message",
-                  "data": {
-                    "action": "refresh",
-                    "image": "./fixtures/200x100_8bpp_in.png",
-                    "orientation": 0,
-                    "offset_x": 0,
-                    "offset_y": 0
-                  }
-                }
-              )"));
   EXPECT_THAT(process_image(parse_message(R"(
                 {
                   "type": "message",
@@ -225,4 +232,62 @@ TEST(process_image, decodes_200x100_8bpp_to_1bpp_orientation_0_zero_offset) {
               ElementsAreArray(read_bmp_into_byte_array(
                   "./fixtures/200x100_1bpp_orientation_0_offset_0_0_out.bmp",
                   COLOR_MODE_1BPP)));
+}
+
+TEST(process_image, decodes_840x584_24bpp_to_1bpp_orientation_0) {
+  EXPECT_THAT(
+      process_image(parse_message(R"(
+                {
+                  "type": "message",
+                  "data": {
+                    "action": "refresh",
+                    "image": "./fixtures/840x584_24bpp_in.png",
+                    "orientation": 0
+                  }
+                }
+              )")),
+
+      ElementsAreArray(read_bmp_into_byte_array(
+          "./fixtures/840x584_24bpp_orientation_0_out.bmp", COLOR_MODE_1BPP)));
+}
+
+TEST(process_image, decodes_640x384_8bpp_to_1bpp_auto_orientation_landscape) {
+  EXPECT_THAT(
+      process_image(parse_message(R"(
+                {
+                  "type": "message",
+                  "data": {
+                    "action": "refresh",
+                    "image": "./fixtures/640x384b_8bpp_in.png"
+                  }
+                }
+              )")),
+
+      ElementsAreArray(read_bmp_into_byte_array(
+          "./fixtures/640x384b_1bpp_orientation_0_out.bmp", COLOR_MODE_1BPP)));
+}
+
+TEST(process_image, decodes_384x640_24bpp_to_1bpp_auto_orientation_portrait) {
+  /*debug_write_bmp(parse_message(R"(
+                {
+                  "type": "message",
+                  "data": {
+                    "action": "refresh",
+                    "image": "./fixtures/384x640_24bpp_in.png"
+                  }
+                }
+              )"));*/
+  EXPECT_THAT(
+      process_image(parse_message(R"(
+                {
+                  "type": "message",
+                  "data": {
+                    "action": "refresh",
+                    "image": "./fixtures/384x640_24bpp_in.png"
+                  }
+                }
+              )")),
+
+      ElementsAreArray(read_bmp_into_byte_array(
+          "./fixtures/384x640_1bpp_orientation_90_out.bmp", COLOR_MODE_1BPP)));
 }

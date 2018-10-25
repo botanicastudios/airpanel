@@ -61,7 +61,9 @@ struct DisplayProperties {
   int width;
   int height;
   int color_mode;
+  bool orientation_specified = false;
   int orientation;
+  bool is_portrait() { return height > width; }
   std::string processor;
 };
 
