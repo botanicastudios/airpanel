@@ -233,21 +233,21 @@ get_translation_properties(Message action, ImageProperties image_properties) {
   translation_properties.offset_x = action.offset_x;
   translation_properties.offset_y = action.offset_y;
 
-  // if (!action.offset_x_specified) {
-  // Center the image in the display
-  translation_properties.offset_x =
-      int(floor((translation_properties.display_width -
-                 translation_properties.image_width) /
-                2));
-  //}
+  if (!action.offset_x_specified) {
+    // Center the image in the display
+    translation_properties.offset_x =
+        int(floor((translation_properties.display_width -
+                   translation_properties.image_width) /
+                  2));
+  }
 
-  // if (!action.offset_y_specified) {
-  // Center the image in the display
-  translation_properties.offset_y =
-      int(floor((translation_properties.display_height -
-                 translation_properties.image_height) /
-                2));
-  //}
+  if (!action.offset_y_specified) {
+    // Center the image in the display
+    translation_properties.offset_y =
+        int(floor((translation_properties.display_height -
+                   translation_properties.image_height) /
+                  2));
+  }
 
   return translation_properties;
 }

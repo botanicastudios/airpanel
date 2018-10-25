@@ -40,9 +40,9 @@ using namespace std;
 struct Message {
   std::string action;
   std::string image_filename;
-  bool offset_x_specified;
+  bool offset_x_specified = false;
   int offset_x;
-  bool offset_y_specified;
+  bool offset_y_specified = false;
   int offset_y;
   bool orientation_specified;
   int orientation;
