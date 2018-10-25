@@ -40,8 +40,12 @@ using namespace std;
 struct Message {
   std::string action;
   std::string image_filename;
+  bool offset_x_specified;
   int offset_x;
+  bool offset_y_specified;
   int offset_y;
+  bool orientation_specified;
+  int orientation;
   bool action_is_refresh() { return action == string("refresh"); };
   bool has_image_filename() { return image_filename != string(""); }
 };
@@ -57,13 +61,18 @@ struct DisplayProperties {
   int width;
   int height;
   int color_mode;
+  int orientation;
   std::string processor;
-  DisplayProperties() {
-    width = 0;
-    height = 0;
-    color_mode = COLOR_MODE_1BPP;
-    processor = BCM2835;
-  }
+};
+
+struct TranslationProperties {
+  int offset_x;
+  int offset_y;
+  int display_width;
+  int display_height;
+  int image_width;
+  int image_height;
+  int orientation;
 };
 
 Message parse_message(const char *message);
@@ -74,6 +83,8 @@ unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
 void process_message(Message message);
 
 std::vector<unsigned char> process_image(Message action);
+
+void debug_write_bmp(Message action);
 
 void write_to_display(std::vector<unsigned char> &bitmap_frame_buffer);
 

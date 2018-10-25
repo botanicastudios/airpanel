@@ -2,5 +2,5 @@
 #include <plog/Appenders/ColorConsoleAppender.h>
 #include <plog/Log.h>
 
-static plog::ColorConsoleAppender<plog::WollemiTxtFormatterUtcTime>
+static plog::ColorConsoleAppender<plog::AirpanelTxtFormatterUtcTime>
     colorConsoleAppender;

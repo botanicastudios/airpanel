@@ -45,7 +45,7 @@ TEST(process_image, decodes_640x384_1bpp_to_1bpp) {
               )")),
 
               ElementsAreArray(read_bmp_into_byte_array(
-                  "./fixtures/640x384_1bpp_out.bmp", COLOR_MODE_1BPP)));
+                  "./fixtures/640x384_1bpp_0_out.bmp", COLOR_MODE_1BPP)));
 }
 
 TEST(process_image, decodes_200x100_8bpp_to_1bpp) {
@@ -60,5 +60,63 @@ TEST(process_image, decodes_200x100_8bpp_to_1bpp) {
               )")),
 
               ElementsAreArray(read_bmp_into_byte_array(
-                  "./fixtures/200x100_1bpp_out.bmp", COLOR_MODE_1BPP)));
+                  "./fixtures/200x100_1bpp_0_out.bmp", COLOR_MODE_1BPP)));
+}
+
+TEST(process_image, decodes_200x100_8bpp_to_1bpp_orientation_90) {
+  EXPECT_THAT(process_image(parse_message(R"(
+                {
+                  "type": "message",
+                  "data": {
+                    "action": "refresh",
+                    "image": "./fixtures/200x100_8bpp_in.png",
+                    "orientation": 90
+                  }
+                }
+              )")),
+
+              ElementsAreArray(read_bmp_into_byte_array(
+                  "./fixtures/200x100_1bpp_90_out.bmp", COLOR_MODE_1BPP)));
+}
+
+TEST(process_image, decodes_200x100_8bpp_to_1bpp_orientation_180) {
+  EXPECT_THAT(process_image(parse_message(R"(
+                {
+                  "type": "message",
+                  "data": {
+                    "action": "refresh",
+                    "image": "./fixtures/200x100_8bpp_in.png",
+                    "orientation": 180
+                  }
+                }
+              )")),
+
+              ElementsAreArray(read_bmp_into_byte_array(
+                  "./fixtures/200x100_1bpp_180_out.bmp", COLOR_MODE_1BPP)));
+}
+
+TEST(process_image, decodes_200x100_8bpp_to_1bpp_orientation_270) {
+  debug_write_bmp(parse_message(R"(
+                {
+                  "type": "message",
+                  "data": {
+                    "action": "refresh",
+                    "image": "./fixtures/200x100_8bpp_in.png",
+                    "orientation": 270
+                  }
+                }
+              )"));
+  EXPECT_THAT(process_image(parse_message(R"(
+                 {
+                   "type": "message",
+                   "data": {
+                     "action": "refresh",
+                     "image": "./fixtures/200x100_8bpp_in.png",
+                     "orientation": 270
+                   }
+                 }
+               )")),
+
+              ElementsAreArray(read_bmp_into_byte_array(
+                  "./fixtures/200x100_1bpp_270_out.bmp", COLOR_MODE_1BPP)));
 }

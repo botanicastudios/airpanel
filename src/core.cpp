@@ -26,6 +26,7 @@
 #include "epdif.h"
 #include <iostream>
 #include <math.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <vector>
 
@@ -77,11 +78,27 @@ Message parse_message(const char *message_string) {
   if (cJSON_IsObject(data)) {
     cJSON *actionJSON = cJSON_GetObjectItemCaseSensitive(data, "action");
     cJSON *imageJSON = cJSON_GetObjectItemCaseSensitive(data, "image");
+    cJSON *orientationJSON =
+        cJSON_GetObjectItemCaseSensitive(data, "orientation");
+    cJSON *offsetXJSON = cJSON_GetObjectItemCaseSensitive(data, "offset_x");
+    cJSON *offsetYJSON = cJSON_GetObjectItemCaseSensitive(data, "offset_y");
     if (actionJSON && actionJSON->valuestring != NULL) {
       message.action = string(actionJSON->valuestring);
     }
     if (imageJSON && imageJSON->valuestring != NULL) {
       message.image_filename = string(imageJSON->valuestring);
+    }
+    if (orientationJSON && cJSON_IsNumber(orientationJSON)) {
+      message.orientation_specified = true;
+      message.orientation = int(orientationJSON->valueint);
+    }
+    if (offsetXJSON && cJSON_IsNumber(offsetXJSON)) {
+      message.offset_x_specified = true;
+      message.offset_x = int(offsetXJSON->valueint);
+    }
+    if (offsetYJSON && cJSON_IsNumber(offsetYJSON)) {
+      message.offset_y_specified = true;
+      message.offset_y = int(offsetYJSON->valueint);
     }
   }
   cJSON_Delete(message_json);
@@ -100,28 +117,64 @@ void process_message(Message message) {
   }
 }
 
-Pixel translate_display_pixel_to_image(int x, int y, int offset_x, int offset_y,
-                                       ImageProperties image_properties) {
+Pixel translate_display_pixel_to_image(
+    int x, int y, TranslationProperties translation_properties,
+    ImageProperties image_properties) {
+
   Pixel image_pixel = {};
 
-  image_pixel.in_bounds =
-      (x >= offset_x && x < (offset_x + image_properties.width) &&
-       y >= offset_y && y < (offset_y + image_properties.height));
+  switch (translation_properties.orientation) {
+  case 180:
+    x = translation_properties.display_width - 1 - x;
+    y = translation_properties.display_height - 1 - y;
+  case 0:
+    image_pixel.in_bounds = (x >= translation_properties.offset_x &&
+                             x < (translation_properties.offset_x +
+                                  translation_properties.image_width) &&
+                             y >= translation_properties.offset_y &&
+                             y < (translation_properties.offset_y +
+                                  translation_properties.image_height));
 
-  if (image_pixel.in_bounds) {
-    image_pixel.x = x - offset_x;
-    image_pixel.x_byte_index = image_pixel.x * image_properties.bytes_per_pixel;
-    image_pixel.y = y - offset_y;
+    if (image_pixel.in_bounds) {
+      image_pixel.x = x - translation_properties.offset_x;
+      image_pixel.y = y - translation_properties.offset_y;
+    }
+
+    break;
+
+  case 270:
+    x = translation_properties.display_height - 1 - x;
+    y = translation_properties.display_width - 1 - y;
+  case 90:
+    image_pixel.in_bounds = (x >= translation_properties.offset_y &&
+                             x < (translation_properties.offset_y +
+                                  translation_properties.image_height) &&
+                             y >= (translation_properties.display_width -
+                                   translation_properties.offset_x -
+                                   translation_properties.image_width) &&
+                             y < (translation_properties.display_width -
+                                  translation_properties.offset_x));
+
+    if (image_pixel.in_bounds) {
+      image_pixel.x = translation_properties.display_width - 1 -
+                      translation_properties.offset_x - y;
+      image_pixel.y = x - translation_properties.offset_y;
+    }
+
+    break;
   }
+
+  image_pixel.x_byte_index = image_pixel.x * image_properties.bytes_per_pixel;
 
   return image_pixel;
 }
 
-int get_current_pixel(int x, int y, int offset_x, int offset_y,
+int get_current_pixel(int x, int y,
+                      TranslationProperties translation_properties,
                       ImageProperties image_properties, int background_color) {
 
-  Pixel image_pixel = translate_display_pixel_to_image(x, y, offset_x, offset_y,
-                                                       image_properties);
+  Pixel image_pixel = translate_display_pixel_to_image(
+      x, y, translation_properties, image_properties);
 
   // If the current pixel being drawn is inside the calculated image bounds,
   // draw the pixel, otherwise draw the background color.
@@ -150,6 +203,55 @@ int get_current_pixel(int x, int y, int offset_x, int offset_y,
   }
 }
 
+TranslationProperties
+get_translation_properties(Message action, ImageProperties image_properties) {
+  TranslationProperties translation_properties;
+
+  if (action.orientation_specified) {
+    translation_properties.orientation = action.orientation;
+  } else {
+    translation_properties.orientation = DISPLAY_PROPERTIES.orientation;
+  }
+
+  switch (translation_properties.orientation) {
+  case 270:
+  case 90:
+    translation_properties.display_width = DISPLAY_PROPERTIES.height;
+    translation_properties.display_height = DISPLAY_PROPERTIES.width;
+    break;
+  case 180:
+  case 0:
+  default:
+    translation_properties.display_width = DISPLAY_PROPERTIES.width;
+    translation_properties.display_height = DISPLAY_PROPERTIES.height;
+    break;
+  }
+
+  translation_properties.image_width = image_properties.width;
+  translation_properties.image_height = image_properties.height;
+
+  translation_properties.offset_x = action.offset_x;
+  translation_properties.offset_y = action.offset_y;
+
+  // if (!action.offset_x_specified) {
+  // Center the image in the display
+  translation_properties.offset_x =
+      int(floor((translation_properties.display_width -
+                 translation_properties.image_width) /
+                2));
+  //}
+
+  // if (!action.offset_y_specified) {
+  // Center the image in the display
+  translation_properties.offset_y =
+      int(floor((translation_properties.display_height -
+                 translation_properties.image_height) /
+                2));
+  //}
+
+  return translation_properties;
+}
+
 /**
  * Receives a Message object with the key `image_filename`
  * It loads the file and returns a byte array ready to be sent to the display
@@ -164,7 +266,7 @@ std::vector<unsigned char> process_image(Message action) {
 
   unsigned int bytes_per_row = COLOR_MODE == COLOR_MODE_1BPP
                                    ? DISPLAY_PROPERTIES.width / 8
-                                   : DISPLAY_PROPERTIES.height;
+                                   : DISPLAY_PROPERTIES.width;
 
   unsigned int frame_buffer_length =
       static_cast<unsigned int>(bytes_per_row * DISPLAY_PROPERTIES.height);
@@ -179,10 +281,8 @@ std::vector<unsigned char> process_image(Message action) {
    ***/
   ImageProperties image_properties = read_png_file(action.image_filename);
 
-  // Center the image in the display
-  int offset_x = floor((DISPLAY_PROPERTIES.width - image_properties.width) / 2);
-  int offset_y =
-      floor((DISPLAY_PROPERTIES.height - image_properties.height) / 2);
+  TranslationProperties translation_properties =
+      get_translation_properties(action, image_properties);
 
   int background_color_for_color_mode = COLOR_MODE == COLOR_MODE_1BPP
                                             ? (BACKGROUND_COLOR > 127)
@@ -194,14 +294,15 @@ std::vector<unsigned char> process_image(Message action) {
     for (int x = 0; x < DISPLAY_PROPERTIES.width; x++) {
 
       int current_pixel =
-          get_current_pixel(x, y, offset_x, offset_y, image_properties,
+          get_current_pixel(x, y, translation_properties, image_properties,
                             background_color_for_color_mode);
 
       /***
        *  we now have x (between 0 and display_width - 1) and y (between 0 and
        *  display_height - 1).
        *
-       *  COLOR_MODE will be equal to either COLOR_MODE_1BPP or COLOR_MODE_8BPP.
+       *  COLOR_MODE will be equal to either COLOR_MODE_1BPP or
+       *COLOR_MODE_8BPP.
        *
        *  If COLOR_MODE == COLOR_MODE_1BPP then current_pixel will be an int
        *  equal to either 1 (white) or 0 (black) and we want to push one byte
@@ -214,10 +315,10 @@ std::vector<unsigned char> process_image(Message action) {
 
       if (COLOR_MODE == COLOR_MODE_1BPP) {
         /***
-         *  Perform a bitwise OR to set the bit in the current_byte representing
-         *  the current pixel (of a set of 8), e.g.:
-         *  00110011 (current_byte) | 00001000 (i.e. current pixel) = 00111011
-         *  If we're on the 8th and final pixel of the current_byte, push the
+         *  Perform a bitwise OR to set the bit in the current_byte
+         *representing the current pixel (of a set of 8), e.g.: 00110011
+         *(current_byte) | 00001000 (i.e. current pixel) = 00111011 If we're
+         *on the 8th and final pixel of the current_byte, push the
          *  current_byte into the frame buffer and reset it to zero so we can
          *  process the next 8 pixels.
          ***/
@@ -254,6 +355,53 @@ std::vector<unsigned char> process_image(Message action) {
   }
 
   return bitmap_frame_buffer;
+}
+
+void debug_write_bmp(Message action) {
+  std::vector<unsigned char> debug_frame_buffer = process_image(action);
+  std::vector<unsigned char> debug_24bpp_frame_buffer(
+      DISPLAY_PROPERTIES.width * DISPLAY_PROPERTIES.height * 3);
+
+  for (int i = 0; i < debug_frame_buffer.size(); i++) {
+    if (COLOR_MODE == COLOR_MODE_1BPP) {
+      char byte = debug_frame_buffer[i];
+      for (int bit = 0; bit < 8; bit++) {
+        int bit_value = ((byte >> (7 - bit)) & 1) * 255;
+        debug_24bpp_frame_buffer[i * 8 * 3 + (3 * bit)] = bit_value;
+        debug_24bpp_frame_buffer[i * 8 * 3 + (3 * bit) + 1] = bit_value;
+        debug_24bpp_frame_buffer[i * 8 * 3 + (3 * bit) + 2] = bit_value;
+      }
+    } else {
+      debug_24bpp_frame_buffer[i * 3] = debug_frame_buffer[i];
+      debug_24bpp_frame_buffer[i * 3 + 1] = debug_frame_buffer[i];
+      debug_24bpp_frame_buffer[i * 3 + 2] = debug_frame_buffer[i];
+    }
+  }
+
+  /*for (int i = 0; i < debug_24bpp_frame_buffer.size(); i++) {
+    if (i % 16 == 0) {
+      printf("\n");
+    }
+    printf("%d\t", debug_24bpp_frame_buffer[i]);
+  }*/
+
+  FILE *imageFile;
+
+  imageFile = fopen("./image.ppm", "wb");
+  if (imageFile == NULL) {
+    perror("ERROR: Cannot open output file");
+    exit(EXIT_FAILURE);
+  }
+
+  fprintf(imageFile, "P6\n"); // P6 filetype
+  fprintf(imageFile, "%d %d\n", DISPLAY_PROPERTIES.width,
+          DISPLAY_PROPERTIES.height); // dimensions
+  fprintf(imageFile, "255\n");        // Max pixel
+
+  fwrite(reinterpret_cast<char *>(&debug_24bpp_frame_buffer[0]), 1,
+         debug_24bpp_frame_buffer.size(), imageFile);
+
+  fclose(imageFile);
 }
 
 /**

@@ -1,5 +1,5 @@
-#if !defined(WOLLEMI_CONSTANTS_H)
-#define WOLLEMI_CONSTANTS_H 1
+#if !defined(AIRPANEL_CONSTANTS_H)
+#define AIRPANEL_CONSTANTS_H 1
 
 #include <stdlib.h>
 #include <string>

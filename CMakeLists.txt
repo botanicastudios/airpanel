@@ -49,11 +49,11 @@ else ()
 endif ()
 
 # Main entry point.
-add_executable(wollemi
+add_executable(airpanel
   ./src/main.cpp ${LIBPNG_LINK_FLAGS})
 
 # Link core to main.
-target_link_libraries(wollemi
+target_link_libraries(airpanel
   core
   plog)
 

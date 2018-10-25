@@ -4,7 +4,7 @@
 #include <plog/Util.h>
 
 namespace plog {
-template <bool useUtcTime> class WollemiTxtFormatterImpl {
+template <bool useUtcTime> class AirpanelTxtFormatterImpl {
 public:
   static util::nstring header() { return util::nstring(); }
 
@@ -32,6 +32,6 @@ public:
   }
 };
 
-class WollemiTxtFormatter : public WollemiTxtFormatterImpl<false> {};
-class WollemiTxtFormatterUtcTime : public WollemiTxtFormatterImpl<true> {};
+class AirpanelTxtFormatter : public AirpanelTxtFormatterImpl<false> {};
+class AirpanelTxtFormatterUtcTime : public AirpanelTxtFormatterImpl<true> {};
 } // namespace plog

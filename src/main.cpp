@@ -1,6 +1,6 @@
 static const char *PACKAGE_VERSION = "0.1";
-static const char *PACKAGE = "Wollemi";
-static const char *SOCKET_PATH = "/tmp/wollemi";
+static const char *PACKAGE = "Airpanel";
+static const char *SOCKET_PATH = "/tmp/airpanel";
 
 #include <getopt.h>
 #include <iostream>
@@ -37,6 +37,8 @@ inline double get_time() {
 int main(int argc, char *argv[]) {
   plog::init(plog::debug, &colorConsoleAppender);
 
+  extern struct DisplayProperties DISPLAY_PROPERTIES;
+
   int ch;
 
   /* TODO:3001 If you want to add more options, add them here. */
@@ -67,10 +69,10 @@ int main(int argc, char *argv[]) {
     // exit(1);
   }
 
-  extern struct DisplayProperties DISPLAY_PROPERTIES;
   DISPLAY_PROPERTIES.width = 640;
   DISPLAY_PROPERTIES.height = 384;
   DISPLAY_PROPERTIES.color_mode = COLOR_MODE_1BPP;
+  DISPLAY_PROPERTIES.orientation = 0;
   DISPLAY_PROPERTIES.processor = BCM2835;
 
   /*
