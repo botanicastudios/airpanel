@@ -99,7 +99,6 @@ Action parse_message(const char *message_string) {
       int orientation;
       if (cJSON_IsNumber(orientationJSON)) {
         orientation = int(orientationJSON->valueint);
-        printf("%d\n", orientation);
       } else {
         long int parsed_orientation =
             strtol(orientationJSON->valuestring, &endptr, 0);
@@ -108,7 +107,7 @@ Action parse_message(const char *message_string) {
         } else {
           // orientation_specified will be false, so this won't be used
           orientation = 0;
-          LOG_WARNING << "Orientation '" << parsed_orientation
+          LOG_WARNING << "Orientation '" << orientationJSON->valuestring
                       << "' could not be understood";
         }
       }
@@ -133,7 +132,7 @@ Action parse_message(const char *message_string) {
           offset_x = int(parsed_offset_x);
         } else {
           offset_x = 0;
-          LOG_WARNING << "offset_x '" << parsed_offset_x
+          LOG_WARNING << "offset_x '" << offsetXJSON->valuestring
                       << "' could not be understood";
         }
       }
@@ -150,7 +149,7 @@ Action parse_message(const char *message_string) {
           offset_y = int(parsed_offset_y);
         } else {
           offset_y = 0;
-          LOG_WARNING << "offset_y '" << parsed_offset_y
+          LOG_WARNING << "offset_y '" << offsetYJSON->valuestring
                       << "' could not be understood";
         }
       }
@@ -289,7 +288,8 @@ int get_current_pixel(int x, int y,
      * bright, make it white (1). Otherwise, black (0). If we're in 8 bit
      * per pixel mode, return the full 8-bit grayscale color.
      */
-    return COLOR_MODE == COLOR_MODE_1BPP ? (gray_color > 127) : gray_color;
+    return DISPLAY_PROPERTIES.color_mode == COLOR_MODE_1BPP ? (gray_color > 127)
+                                                            : gray_color;
   } else {
     return background_color;
   }
@@ -371,7 +371,7 @@ std::vector<unsigned char> process_image(Action action) {
    * 1-bit pixels. It will therefore be 1/8 of the width of the
    * display, and its full height.
    */
-  unsigned int bytes_per_row = COLOR_MODE == COLOR_MODE_1BPP
+  unsigned int bytes_per_row = DISPLAY_PROPERTIES.color_mode == COLOR_MODE_1BPP
                                    ? DISPLAY_PROPERTIES.width / 8
                                    : DISPLAY_PROPERTIES.width;
 
@@ -390,9 +390,10 @@ std::vector<unsigned char> process_image(Action action) {
   TranslationProperties translation_properties =
       get_translation_properties(action, image_properties);
 
-  int background_color_for_color_mode = COLOR_MODE == COLOR_MODE_1BPP
-                                            ? (BACKGROUND_COLOR > 127)
-                                            : BACKGROUND_COLOR;
+  int background_color_for_color_mode =
+      DISPLAY_PROPERTIES.color_mode == COLOR_MODE_1BPP
+          ? (BACKGROUND_COLOR > 127)
+          : BACKGROUND_COLOR;
 
   for (int y = 0; y < DISPLAY_PROPERTIES.height; y++) {
     int current_byte = 0;
@@ -406,19 +407,19 @@ std::vector<unsigned char> process_image(Action action) {
       /* We now have x (between 0 and display_width - 1) and y (between 0 and
        * display_height - 1).
        *
-       * COLOR_MODE will be equal to either COLOR_MODE_1BPP or
-       * COLOR_MODE_8BPP.
+       * DISPLAY_PROPERTIES.color_mode  will be equal to either COLOR_MODE_1BPP
+       * or COLOR_MODE_8BPP.
        *
-       * If COLOR_MODE == COLOR_MODE_1BPP then current_pixel will be an int
-       * equal to either 1 (white) or 0 (black) and we want to push one byte
-       * into the frame buffer per 8 pixels.
+       * If COLOR_MODE_1BPP then current_pixel will be an int equal to either 1
+       * (white) or 0 (black) and we want to push one byte into the frame buffer
+       * per 8 pixels.
        *
-       * If COLOR_MODE == COLOR_MODE_8BPP then current_pixel will be an int
-       * between 0 and 255 representing the grayscale value of the current
-       * pixel, and we want to push one byte into the frame buffer per pixel.
+       * If COLOR_MODE_8BPP then current_pixel will be an int between 0 and 255
+       * representing the grayscale value of the current pixel, and we want to
+       * push one byte into the frame buffer per pixel.
        */
 
-      if (COLOR_MODE == COLOR_MODE_1BPP) {
+      if (DISPLAY_PROPERTIES.color_mode == COLOR_MODE_1BPP) {
         /* Perform a bitwise OR to set the bit in the current_byte
          * representing the current pixel (of a set of 8), e.g.: 00110011
          * (current_byte) | 00001000 (i.e. current pixel) = 00111011 If we're
@@ -469,7 +470,7 @@ std::vector<unsigned char> process_image(Action action) {
 void write_to_display(std::vector<unsigned char> &bitmap_frame_buffer) {
   Epd epd;
   if (epd.Init() != 0) {
-    LOG_ERROR << "e-Paper init failed";
+    LOG_ERROR << "Display initialization failed";
   } else {
     // send the frame buffer to the panel
     epd.DisplayFrame(bitmap_frame_buffer.data());

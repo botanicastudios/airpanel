@@ -26,7 +26,7 @@ void debug_write_ppm(Action action) {
       DISPLAY_PROPERTIES.width * DISPLAY_PROPERTIES.height * 3);
 
   for (int i = 0; i < debug_frame_buffer.size(); i++) {
-    if (COLOR_MODE == COLOR_MODE_1BPP) {
+    if (DISPLAY_PROPERTIES.color_mode == COLOR_MODE_1BPP) {
       char byte = debug_frame_buffer[i];
       for (int bit = 0; bit < 8; bit++) {
         int bit_value = ((byte >> (7 - bit)) & 1) * 255;

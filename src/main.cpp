@@ -29,6 +29,7 @@ static void usage(void) {
   fprintf(stderr, " -h, --help                  display help and exit\n");
   fprintf(stderr, " -v, --version               print version and exit\n");
   fprintf(stderr, " -V, --verbose               switch on verbose logging\n");
+  fprintf(stderr, " -l, --logfile LOGFILE       log to a file\n");
   fprintf(stderr,
           " -W, --width WIDTH           set the display's native width\n");
   fprintf(stderr,
@@ -82,12 +83,13 @@ int main(int argc, char *argv[]) {
       {"processor", required_argument, 0, 'p'},
       {"orientation", required_argument, 0, 'o'},
       {"image", required_argument, 0, 'i'},
+      {"logfile", required_argument, 0, 'l'},
       {0, 0, 0, 0}};
 
   char *endptr;
   string optarg_string;
 
-  while ((ch = getopt_long(argc, argv, "hVva:W:H:c:p:o:i:s:x:y:b:",
+  while ((ch = getopt_long(argc, argv, "hVva:W:H:c:p:o:i:s:x:y:b:l:",
                            long_options, 0)) != -1) {
 
     if (ch == -1) {
@@ -107,8 +109,18 @@ int main(int argc, char *argv[]) {
     }
 
     case 'v': {
-      LOG_INFO << "Enabled verbose logging mode";
       plog::get()->setMaxSeverity(plog::verbose);
+      LOG_INFO << "Enabled verbose logging mode";
+      break;
+    }
+
+    case 'l': {
+      static plog::RollingFileAppender<plog::AirpanelTxtFormatterUtcTime>
+          fileAppender(optarg, 100000, 3);
+      plog::get()->addAppender(&fileAppender);
+      LOG_INFO << "------------------------------------------------------------"
+                  "--------------------";
+      LOG_INFO << "Airpanel started; logging to " << optarg;
       break;
     }
 
