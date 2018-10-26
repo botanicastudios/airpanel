@@ -70,8 +70,9 @@ unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
 /***
  *  Get JSON parsing out of the way and return a struct.
  */
-Message parse_message(const char *message_string) {
-  Message message;
+Action parse_message(const char *message_string) {
+  Action message;
+  message.type = "socket";
   cJSON *message_json;
   cJSON *data;
   message_json = cJSON_Parse(message_string);
@@ -109,10 +110,10 @@ Message parse_message(const char *message_string) {
 
 /* The main deal: take an incoming message and... display an image!
  */
-void process_message(Message message) {
-  if (message.action_is_refresh()) {
-    if (message.has_image_filename()) {
-      std::vector<unsigned char> bitmap_frame_buffer = process_image(message);
+void process_action(Action action) {
+  if (action.action_is_refresh()) {
+    if (action.has_image_filename()) {
+      std::vector<unsigned char> bitmap_frame_buffer = process_image(action);
       write_to_display(bitmap_frame_buffer);
     } else {
       LOG_WARNING << "Message with `refresh` action received, but no "
@@ -246,7 +247,7 @@ int get_current_pixel(int x, int y,
  *  conversion.
  */
 TranslationProperties
-get_translation_properties(Message action, ImageProperties image_properties) {
+get_translation_properties(Action action, ImageProperties image_properties) {
   TranslationProperties translation_properties;
 
   // If the message provided an orientation, use that preferentially
@@ -306,10 +307,10 @@ get_translation_properties(Message action, ImageProperties image_properties) {
 }
 
 /***
- *  Receives a Message object with the key `image_filename`
+ *  Receives an Action object with the key `image_filename`
  *  It loads the file and returns a byte array ready to be sent to the display
  */
-std::vector<unsigned char> process_image(Message action) {
+std::vector<unsigned char> process_image(Action action) {
 
   /* The bitmap frame buffer will consist of bytes (i.e. char)
    * in a vector. For a 1-bit display, each byte represents 8

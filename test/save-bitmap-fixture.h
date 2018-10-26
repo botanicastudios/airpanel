@@ -1,1 +1,1 @@
-void debug_write_ppm(Message action);
+void debug_write_ppm(Action action);

@@ -1,4 +1,5 @@
 #include "exceptions.h"
+#include "logger.h"
 #include "readpng.h"
 #include <png.h>
 #include <stdlib.h>

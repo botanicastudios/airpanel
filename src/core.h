@@ -37,7 +37,8 @@ using namespace std;
  * TODO:5001 functions should.
  */
 
-struct Message {
+struct Action {
+  std::string type;
   std::string action;
   std::string image_filename;
   bool offset_x_specified = false;
@@ -77,14 +78,14 @@ struct TranslationProperties {
   int orientation;
 };
 
-Message parse_message(const char *message);
+Action parse_message(const char *message);
 
 unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
                              unsigned int A);
 
-void process_message(Message message);
+void process_action(Action action);
 
-std::vector<unsigned char> process_image(Message action);
+std::vector<unsigned char> process_image(Action action);
 
 void write_to_display(std::vector<unsigned char> &bitmap_frame_buffer);
 

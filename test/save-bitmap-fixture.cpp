@@ -20,7 +20,7 @@ extern DisplayProperties DISPLAY_PROPERTIES;
  *    }
  *  )"));
  **/
-void debug_write_ppm(Message action) {
+void debug_write_ppm(Action action) {
   std::vector<unsigned char> debug_frame_buffer = process_image(action);
   std::vector<unsigned char> debug_24bpp_frame_buffer(
       DISPLAY_PROPERTIES.width * DISPLAY_PROPERTIES.height * 3);
