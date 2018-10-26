@@ -24,6 +24,9 @@
 #include "cJSON.h"
 #include "epd7in5.h"
 #include "epdif.h"
+#include <algorithm>
+#include <cctype>
+#include <ctype.h>
 #include <iostream>
 #include <math.h>
 #include <stdio.h>
@@ -72,6 +75,7 @@ unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
  */
 Action parse_message(const char *message_string) {
   Action message;
+  char *endptr;
   message.type = "socket";
   cJSON *message_json;
   cJSON *data;
@@ -91,17 +95,67 @@ Action parse_message(const char *message_string) {
     if (imageJSON && imageJSON->valuestring != NULL) {
       message.image_filename = string(imageJSON->valuestring);
     }
-    if (orientationJSON && cJSON_IsNumber(orientationJSON)) {
-      message.orientation_specified = true;
-      message.orientation = int(orientationJSON->valueint);
+    if (orientationJSON) {
+      int orientation;
+      if (cJSON_IsNumber(orientationJSON)) {
+        orientation = int(orientationJSON->valueint);
+        printf("%d\n", orientation);
+      } else {
+        long int parsed_orientation =
+            strtol(orientationJSON->valuestring, &endptr, 0);
+        if (!*endptr) {
+          orientation = int(parsed_orientation);
+        } else {
+          // orientation_specified will be false, so this won't be used
+          orientation = 0;
+          LOG_WARNING << "Orientation '" << parsed_orientation
+                      << "' could not be understood";
+        }
+      }
+      int valid_orientations[] = {0, 90, 180, 270};
+      if (std::find(std::begin(valid_orientations),
+                    std::end(valid_orientations),
+                    orientation) != std::end(valid_orientations)) {
+        message.orientation_specified = true;
+        message.orientation = orientation;
+      } else {
+        LOG_WARNING << "Orientation " << orientation
+                    << " supplied, but valid values are 0, 90, 180 and 270";
+      }
     }
-    if (offsetXJSON && cJSON_IsNumber(offsetXJSON)) {
+    if (offsetXJSON) {
+      int offset_x;
+      if (cJSON_IsNumber(offsetXJSON)) {
+        offset_x = int(offsetXJSON->valueint);
+      } else {
+        long int parsed_offset_x = strtol(offsetXJSON->valuestring, &endptr, 0);
+        if (!*endptr) {
+          offset_x = int(parsed_offset_x);
+        } else {
+          offset_x = 0;
+          LOG_WARNING << "offset_x '" << parsed_offset_x
+                      << "' could not be understood";
+        }
+      }
       message.offset_x_specified = true;
-      message.offset_x = int(offsetXJSON->valueint);
+      message.offset_x = offset_x;
     }
-    if (offsetYJSON && cJSON_IsNumber(offsetYJSON)) {
+    if (offsetYJSON) {
+      int offset_y;
+      if (cJSON_IsNumber(offsetYJSON)) {
+        offset_y = int(offsetYJSON->valueint);
+      } else {
+        long int parsed_offset_y = strtol(offsetYJSON->valuestring, &endptr, 0);
+        if (!*endptr) {
+          offset_y = int(parsed_offset_y);
+        } else {
+          offset_y = 0;
+          LOG_WARNING << "offset_y '" << parsed_offset_y
+                      << "' could not be understood";
+        }
+      }
       message.offset_y_specified = true;
-      message.offset_y = int(offsetYJSON->valueint);
+      message.offset_y = offset_y;
     }
   }
   cJSON_Delete(message_json);

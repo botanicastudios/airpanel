@@ -269,7 +269,7 @@ TEST(process_image, decodes_640x384_8bpp_to_1bpp_auto_orientation_landscape) {
 }
 
 TEST(process_image, decodes_384x640_24bpp_to_1bpp_auto_orientation_portrait) {
-  debug_write_ppm(parse_message(R"(
+  /*debug_write_ppm(parse_message(R"(
                 {
                   "type": "message",
                   "data": {
@@ -277,7 +277,7 @@ TEST(process_image, decodes_384x640_24bpp_to_1bpp_auto_orientation_portrait) {
                     "image": "./fixtures/384x640_24bpp_in.png"
                   }
                 }
-              )"));
+              )"));*/
   EXPECT_THAT(
       process_image(parse_message(R"(
                 {
@@ -291,4 +291,24 @@ TEST(process_image, decodes_384x640_24bpp_to_1bpp_auto_orientation_portrait) {
 
       ElementsAreArray(read_bmp_into_byte_array(
           "./fixtures/384x640_1bpp_orientation_90_out.bmp", COLOR_MODE_1BPP)));
+}
+
+TEST(process_image,
+     processes_message_with_string_values_for_orientation_and_offset) {
+  EXPECT_THAT(process_image(parse_message(R"(
+                  {
+                    "type": "message",
+                    "data": {
+                      "action": "refresh",
+                      "image": "./fixtures/200x100_8bpp_in.png",
+                      "orientation": "90",
+                      "offset_x": "20",
+                      "offset_y": "20"
+                    }
+                  }
+                )")),
+
+              ElementsAreArray(read_bmp_into_byte_array(
+                  "./fixtures/200x100_1bpp_orientation_90_offset_20_20_out.bmp",
+                  COLOR_MODE_1BPP)));
 }
