@@ -74,7 +74,7 @@ unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
  *  Get JSON parsing out of the way and return a struct.
  */
 Action parse_message(const char *message_string) {
-  Action message;
+  Action message = {};
   char *endptr;
   message.type = "socket";
   cJSON *message_json;
@@ -302,22 +302,28 @@ int get_current_pixel(int x, int y,
  */
 TranslationProperties
 get_translation_properties(Action action, ImageProperties image_properties) {
-  TranslationProperties translation_properties;
+  TranslationProperties translation_properties = {};
 
   // If the message provided an orientation, use that preferentially
   if (action.orientation_specified) {
+    LOG_DEBUG << "action.orientation_specified";
     translation_properties.orientation = action.orientation;
   } else {
     if (DISPLAY_PROPERTIES.orientation_specified) {
+      LOG_DEBUG << "DISPLAY_PROPERTIES.orientation_specified";
       // If display orientation was specified at startup, use that
       translation_properties.orientation = DISPLAY_PROPERTIES.orientation;
     } else {
       // If no orientation was specified, auto orient images so landscape
       // displays rotate portrait images and vice versa
+      // LOG_DEBUG << DISPLAY_PROPERTIES.is_portrait();
+      // LOG_DEBUG << image_properties.is_portrait();
+      LOG_DEBUG << translation_properties.orientation;
       translation_properties.orientation =
           DISPLAY_PROPERTIES.is_portrait() == image_properties.is_portrait()
               ? 0
               : 90;
+      LOG_DEBUG << translation_properties.orientation;
     }
   }
 
@@ -387,6 +393,14 @@ std::vector<unsigned char> process_image(Action action) {
    */
   ImageProperties image_properties = read_png_file(action.image_filename);
 
+  LOG_DEBUG << "Image size: " << image_properties.width << "×"
+            << image_properties.height;
+  LOG_DEBUG << "Color type: " << image_properties.color_type;
+  LOG_DEBUG << "Bit depth: " << image_properties.bit_depth;
+  LOG_DEBUG << "Bytes per pixel: " << image_properties.bytes_per_pixel;
+  LOG_DEBUG << "Bytes per row: " << bytes_per_row;
+  LOG_DEBUG << "Is portrait: " << image_properties.is_portrait();
+
   TranslationProperties translation_properties =
       get_translation_properties(action, image_properties);
 
@@ -394,6 +408,11 @@ std::vector<unsigned char> process_image(Action action) {
       DISPLAY_PROPERTIES.color_mode == COLOR_MODE_1BPP
           ? (BACKGROUND_COLOR > 127)
           : BACKGROUND_COLOR;
+
+  LOG_DEBUG << "Orientation: " << translation_properties.orientation << "°";
+  LOG_DEBUG << "Offset X: " << translation_properties.offset_x;
+  LOG_DEBUG << "Offset Y: " << translation_properties.offset_y;
+  LOG_DEBUG << "Background color: " << background_color_for_color_mode;
 
   for (int y = 0; y < DISPLAY_PROPERTIES.height; y++) {
     int current_byte = 0;

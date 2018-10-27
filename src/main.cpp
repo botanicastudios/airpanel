@@ -29,6 +29,7 @@ static void usage(void) {
   fprintf(stderr, " -h, --help                  display help and exit\n");
   fprintf(stderr, " -v, --version               print version and exit\n");
   fprintf(stderr, " -V, --verbose               switch on verbose logging\n");
+  fprintf(stderr, " -D, --debug                 switch on debug logging\n");
   fprintf(stderr, " -l, --logfile LOGFILE       log to a file\n");
   fprintf(stderr,
           " -W, --width WIDTH           set the display's native width\n");
@@ -72,6 +73,7 @@ int main(int argc, char *argv[]) {
   static struct option long_options[] = {
       {"help", no_argument, 0, 'h'},
       {"version", no_argument, 0, 'V'},
+      {"debug", no_argument, 0, 'd'},
       {"verbose", no_argument, 0, 'v'},
       {"action", required_argument, 0, 'a'},
       {"socket", required_argument, 0, 's'},
@@ -88,8 +90,9 @@ int main(int argc, char *argv[]) {
 
   char *endptr;
   string optarg_string;
+  bool verbose_mode = false;
 
-  while ((ch = getopt_long(argc, argv, "hVva:W:H:c:p:o:i:s:x:y:b:l:",
+  while ((ch = getopt_long(argc, argv, "hVDva:W:H:c:p:o:i:s:x:y:b:l:",
                            long_options, 0)) != -1) {
 
     if (ch == -1) {
@@ -106,6 +109,14 @@ int main(int argc, char *argv[]) {
     case 'V': {
       fprintf(stdout, "%s %s\n", PACKAGE, PACKAGE_VERSION);
       exit(0);
+    }
+
+    case 'D': {
+      if (!verbose_mode) {
+        plog::get()->setMaxSeverity(plog::debug);
+        LOG_INFO << "Enabled debug logging mode";
+      }
+      break;
     }
 
     case 'v': {
@@ -308,7 +319,7 @@ int main(int argc, char *argv[]) {
     double time_end = get_time();
     char timeTaken[20];
     sprintf(timeTaken, "Took %.2f ms", (time_end - time_start));
-    LOG_INFO << timeTaken;
+    LOG_DEBUG << timeTaken;
     exit(0);
   }
 
@@ -385,7 +396,7 @@ int main(int argc, char *argv[]) {
       // Ensure the buffer passed to cJSON is null terminated, so the strlen
       // it calls doesn't suffer
       buf[rc - 1] = '\0'; // chops off the last \n too
-      LOG_INFO << "Received message: " << buf;
+      LOG_DEBUG << "Received message: " << buf;
       double time_start = get_time();
 
       try {
@@ -398,7 +409,7 @@ int main(int argc, char *argv[]) {
       double time_end = get_time();
       char timeTaken[20];
       sprintf(timeTaken, "Took %.2f ms", (time_end - time_start));
-      LOG_INFO << timeTaken;
+      LOG_DEBUG << timeTaken;
     }
     if (rc == -1) {
       LOG_ERROR << "Read error";
