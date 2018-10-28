@@ -74,7 +74,7 @@ unsigned int convert_to_gray(unsigned int R, unsigned int G, unsigned int B,
  *  Get JSON parsing out of the way and return a struct.
  */
 Action parse_message(const char *message_string) {
-  Action message = {};
+  Action message; // = {};
   char *endptr;
   message.type = "socket";
   cJSON *message_json;
@@ -161,7 +161,8 @@ Action parse_message(const char *message_string) {
   return message;
 }
 
-/* The main deal: take an incoming message and... display an image!
+/***
+ *  The main deal: take an incoming message and... display an image!
  */
 void process_action(Action action) {
   if (action.action_is_refresh()) {
