@@ -25,7 +25,7 @@ void debug_write_ppm(Action action) {
   std::vector<unsigned char> debug_24bpp_frame_buffer(
       DISPLAY_PROPERTIES.width * DISPLAY_PROPERTIES.height * 3);
 
-  for (int i = 0; i < debug_frame_buffer.size(); i++) {
+  for (unsigned int i = 0; i < debug_frame_buffer.size(); i++) {
     if (DISPLAY_PROPERTIES.color_mode == COLOR_MODE_1BPP) {
       char byte = debug_frame_buffer[i];
       for (int bit = 0; bit < 8; bit++) {
