@@ -69,7 +69,7 @@ ImageProperties read_png_file(std::string filename) {
 
   image_properties.row_pointers = static_cast<png_bytep *>(
       malloc(sizeof(png_bytep) * image_properties.height));
-  for (unsigned int y = 0; y < image_properties.height; y++) {
+  for (int y = 0; y < image_properties.height; y++) {
     image_properties.row_pointers[y] =
         static_cast<png_byte *>(malloc(png_get_rowbytes(png, info)));
   }
